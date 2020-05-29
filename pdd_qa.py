@@ -1,16 +1,13 @@
 #Browse to the folder containing the Files
-from tkinter import Tk, filedialog
+import easygui as eg
 import os
-from PDD_Module2 import *
-from easygui import multenterbox, buttonbox, enterbox, msgbox, choicebox, ynbox
-# from pandas import ExcelWriter, DataFrame
-import pandas as pd
+from pdd_module import *
 from datetime import date
 from openpyxl import workbook, load_workbook
 import csv
 import pypyodbc
 import random
-
+# import pandas as pd
 
 
 
@@ -23,15 +20,15 @@ import random
 ####################
 
 # Open a dialog box to ask users where the file data is saved
-msgbox( 'Please select the folder containing the data to be analysed',
-        title = 'Data Selection')
-root = Tk()
-root.withdraw()
-dir = filedialog.askdirectory()
+# eg. msgbox( 'Please select the folder containing the data to be analysed',
+#         title = 'Data Selection')
+# root = Tk()
+# root.withdraw()
+dir = eg.diropenbox(title='Please select folder containing pdd data')
 # .askdirectory() returns an empty string if canceled so compare against ''
-if dir == '':
-    msgbox( 'Please re-run the code and select a folder containing the data ' \
-            'to be analysed', title = 'Folder Selection Error')
+if not dir:
+    eg.msgbox('Please re-run the code and select a folder containing the data' \
+              ' to be analysed', title = 'Folder Selection Error')
     exit()
 
 
@@ -48,16 +45,16 @@ if dir == '':
 Data_Dict = {}      # Dictionary to insert X and Y data with Energy as the key
 TEST_Dict = {}      # Dictionary to get the date for the database key
 BadName = []        # Array for alert if filnames don't match the energy
-Operators = []      # List to fetch names of operators from the databse
 Machines = []       # List to fetch names of Gantries from the databse
 Devices = []        # List to fetch names of Devices from the databse
-Catagories = []     # List to fetch Catagories of devices from the databse
+categories = []     # List to fetch categories of devices from the databse
 rounddata = 3       # For rounding the values to put into the database
-CurrentDate = date.today()  # For the record later
-DatabaseLocation = 'O:/protons/Work in Progress/Christian/Database/Proton/' \
-                   'Test FE - CB.accdb'
-QualSysDataLocation = 'O:/protons/Work in Progress/Christian/Python/' \
-                      'PDD Analysis/Reference Tank Data'
+current_date = date.today()  # For the record later
+
+database_dir = ('\\\\krypton\\rtp-share$\\protons\\Work in Progress\\Christian'
+                '\\Database\\Proton\\Test FE - CB.accdb')
+refdata_dir = ('\\\\krypton\\rtp-share$\\protons\\Work in Progress\\Christian'
+               '\\Python\\PDD Analysis\\Reference Tank Data')
 
 
 ################################################################################
@@ -76,7 +73,7 @@ QualSysDataLocation = 'O:/protons/Work in Progress/Christian/Python/' \
 #Connect to the database
 conn = pypyodbc.connect(
         r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};'
-        r'DBQ=' + DatabaseLocation + ';'
+        r'DBQ=' + database_dir + ';'
         )
 cursor = conn.cursor()
 
@@ -84,74 +81,80 @@ cursor = conn.cursor()
 # Add the "Operators" table to the cursor
 cursor.execute('select * from [Operators]')
 # Fetch the data from the cursor
-for row in cursor.fetchall():
-    # Fetch the names (2nd column) and append to the list.
-    Operators.append(row[2])
+operators = [row[2] for row in cursor.fetchall()]
+
 # Use this new list to fill an input box (choicebox)
-Operator = choicebox(   'Who performed the measurements?',
+operator = eg.choicebox(   'Who performed the measurements?',
                         'Operator',
-                        Operators   )
+                        operators   )
+
+
 # This section ensures a button is selected
-if Operator == None:
-    msgbox('Please re-run the code and select an Operator')
-    exit()
-print('Operator = ' + Operator + '\n')
+if not operator:
+    eg.msgbox('Please re-run the code and select an Operator')
+    raise SystemExit
+print(f'Operator = {operator}\n')
 
 # Now that Operator has been saved can select Gantry
 # (see comments from prev section)
 cursor.execute('select * from [MachinesQuery]')
-for row in cursor.fetchall():
-    Machines.append(row[0])
-Gantry = choicebox( 'Which room were the measurements performed in?',
-                    'Gantry',
-                    Machines    )
-if Gantry == None:
-    msgbox('Please re-run the code and select a room')
-    exit()
-print('Gantry = ' + Gantry + '\n')
+machines = [row[0] for row in cursor.fetchall()]
+
+gantry = eg.choicebox( 'Which room were the measurements performed in?',
+                       'Gantry',
+                       machines    )
+if not gantry:
+    eg.msgbox('Please re-run the code and select a room')
+    raise SystemExit
+print(f'Gantry = {gantry}\n')
 
 # Now that Gantry has been saved can select Device
 # First need to ask the user if they are performing a PDD or MLIC measurement
 # to decide what database table to pull the data from.
-MeasurementType = choicebox(    'Are you performing a PDD or MLIC measurement?',
+measurement_type = eg.choicebox('Are you performing a PDD or MLIC measurement?',
                                 'Measurement Type',
                                 ['PDD', 'MLIC']     )
-if MeasurementType == None:
-    msgbox('Please re-run the code and select a Measurement Type')
-    exit()
-print('Measurement Type = ' + MeasurementType + '\n')
+if not measurement_type:
+    eg.msgbox('Please re-run the code and select a Measurement Type')
+    raise SystemExit
+print(f'Measurement Type = {measurement_type}\n')
 
-if MeasurementType == 'PDD':
+
+if measurement_type == 'PDD':
     # If PDD then can select the PDD equipment (see comments from prev section)
     cursor.execute('select * from [PDD Equipment Query]')
+    # Using list comprehension requires zip function and is less readable
+    devices = []
+    categories = []
     for row in cursor.fetchall():
-        Devices.append(row[1])
-        Catagories.append(row[2])
-    Device = choicebox( 'Which Chamber/Device was used?',
-                        'Device',
-                        Devices     )
-    if Device == None:
-        msgbox('Please re-run the code and select a device')
-        exit()
-    print('Chamber/Device Used = ' + Device + '\n')
+        devices.append(row[1])
+        categories.append(row[2])
+
+    device = eg.choicebox( 'Which Chamber/Device was used?',
+                           'Device',
+                           devices     )
+    if not device:
+        eg.msgbox('Please re-run the code and select a device')
+        raise SystemExit
+    print(f'Chamber/Device Used = {device}\n')
 elif MeasurementType == 'MLIC':
-    msgbox( 'MLIC code not complete as awaiting database module and queries ' \
-            'to be written'  )
-    exit()
+    eg.msgbox( 'MLIC code not complete as awaiting database module and queries ' \
+               'to be written'  )
+    raise SystemExit
 
 # Run a check to make sure the device type matches the data type
 # i.e. PDD Chamber matches '.mcc' files and MLIC matches '.csv' files
-Catagory = Catagories[Devices.index(Device)]
-if Catagory == 'MLIC':
+category = categories[devices.index(device)]
+if category == 'MLIC':
     if os.listdir(dir)[0].endswith('.csv') != True:
-        msgbox( 'Device does not match filetype. Please re run the code and ' \
-                'select the correct device/folder', 'Device/File Type Error' )
-        exit()
-if Catagory == 'PDD Chamber':
+        eg.msgbox('Device does not match filetype. Please re run the code and '
+                  'select the correct device/folder', 'Device/File Type Error')
+        raise SystemExit
+if category == 'PDD Chamber':
     if os.listdir(dir)[0].endswith('.mcc') != True:
-        msgbox( 'Device does not match filetype. Please re run the code and ' \
-                'select the correct device/folder', 'Device/File Type Error' )
-        exit()
+        eg.msgbox('Device does not match filetype. Please re run the code and '
+                  'select the correct device/folder', 'Device/File Type Error')
+        raise SystemExit
 
 # Enter the WET offset through a user entry box
 OffSet = enterbox("Enter WET Offset (mm)", "WET Offset", ('0'))
@@ -230,7 +233,7 @@ QualSysPlanRefData=[]
 GantryList = [[Gantry, 1], [PlanRefGantry, 2]]
 # Loop through to pull out the gantry specific and the planning reference data
 for x in GantryList:
-    for filename in os.listdir(QualSysDataLocation + '/' + str(x[0])):
+    for filename in os.listdir(refdata_dir + '/' + str(x[0])):
         # Extract the filename
         file = os.path.basename(filename)
         # Extract filename without extension
@@ -497,7 +500,7 @@ for filename in os.listdir(dir):
             EnergyIndex = x
 
     Subset = [  D,
-                CurrentDate,
+                current_date,
                 Operator,
                 Device,
                 Gantry,
