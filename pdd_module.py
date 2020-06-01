@@ -117,8 +117,10 @@ def directory_to_dictionary(dir):
         if file[-3:] == 'mcc':
             ref_data[name], energy, date, gantry_angle = readmcc(path)
             if not name == energy:
-                eg.msgbox(f"File {file}: Energy doesn't match filename",
+                eg.msgbox(f"File {file}: Energy doesn't match filename" +
+                          "Code will terminate",
                           title="Reference Data Error")
+                raise SystemExit
         if file[-3:] == 'csv':
             ref_data[name], date = readgiraffe(os.path.join(dir, filename))
     return ref_data

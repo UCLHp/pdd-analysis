@@ -7,99 +7,50 @@ from openpyxl import workbook, load_workbook
 import csv
 import pypyodbc
 import random
-# import pandas as pd
+import pandas as pd
 
+###############################################################################
+# SELECT DATA AND LOAD REFERENCE DIRECTORIES
+###############################################################################
 
-
-
-################################################################################
-######################### FIND MEASUREMENT DATA ################################
-
-####################
-# This section is designed to find out where the files for analysis are located.
-####################
-
-# Open a dialog box to ask users where the file data is saved
-# eg. msgbox( 'Please select the folder containing the data to be analysed',
-#         title = 'Data Selection')
-# root = Tk()
-# root.withdraw()
 dir = eg.diropenbox(title='Please select folder containing pdd data')
-# .askdirectory() returns an empty string if canceled so compare against ''
+
 if not dir:
     eg.msgbox('Please re-run the code and select a folder containing the data' \
               ' to be analysed', title = 'Folder Selection Error')
     exit()
 
-
-
-
-
-################################################################################
-##################### PREPARE SOME EMPTY DATA FILES ############################
-
-####################
-# This part prepares the empty arrays etc. needed for later
-####################
-
-Data_Dict = {}      # Dictionary to insert X and Y data with Energy as the key
-TEST_Dict = {}      # Dictionary to get the date for the database key
-BadName = []        # Array for alert if filnames don't match the energy
-Machines = []       # List to fetch names of Gantries from the databse
-Devices = []        # List to fetch names of Devices from the databse
-categories = []     # List to fetch categories of devices from the databse
-rounddata = 3       # For rounding the values to put into the database
-current_date = date.today()  # For the record later
-
 database_dir = ('\\\\krypton\\rtp-share$\\protons\\Work in Progress\\Christian'
                 '\\Database\\Proton\\Test FE - CB.accdb')
 refdata_dir = ('\\\\krypton\\rtp-share$\\protons\\Work in Progress\\Christian'
                '\\Python\\PDD Analysis\\Reference Tank Data')
+current_date = date.today()  #  For the record later
+rounddata = 3    #  For rounding so significant figures match between qs and db
 
+###############################################################################
+# CONNECT TO DB AND SELECT USER DEFINED VARIABLES (GANTRY ETC.)
+###############################################################################
 
-################################################################################
-############################### USER INPUTS ####################################
-
-####################
-# This part is for user-entry of measurement details This part accesses the QA
-# Database. This will be used to pull data out of the database and also later to
-# put the final results in. pypyodbc is a library allowing you to connect to an
-# SQL database. Some of it is code that CG copied from google. (The important
-# bit is the DBQ = bit where you put the location of the database) It appears to
-# work with giving it the Front End which is needed for access to queries as
-# well as tables.
-####################
-
-#Connect to the database
 conn = pypyodbc.connect(
         r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};'
         r'DBQ=' + database_dir + ';'
         )
 cursor = conn.cursor()
 
-# Select Operator list from Database
-# Add the "Operators" table to the cursor
+# Select Operator
 cursor.execute('select * from [Operators]')
-# Fetch the data from the cursor
 operators = [row[2] for row in cursor.fetchall()]
-
-# Use this new list to fill an input box (choicebox)
 operator = eg.choicebox(   'Who performed the measurements?',
                         'Operator',
                         operators   )
-
-
-# This section ensures a button is selected
 if not operator:
     eg.msgbox('Please re-run the code and select an Operator')
     raise SystemExit
 print(f'Operator = {operator}\n')
 
-# Now that Operator has been saved can select Gantry
-# (see comments from prev section)
+# Select Gantry
 cursor.execute('select * from [MachinesQuery]')
 machines = [row[0] for row in cursor.fetchall()]
-
 gantry = eg.choicebox( 'Which room were the measurements performed in?',
                        'Gantry',
                        machines    )
@@ -108,9 +59,7 @@ if not gantry:
     raise SystemExit
 print(f'Gantry = {gantry}\n')
 
-# Now that Gantry has been saved can select Device
-# First need to ask the user if they are performing a PDD or MLIC measurement
-# to decide what database table to pull the data from.
+# Select Measurement Type
 measurement_type = eg.choicebox('Are you performing a PDD or MLIC measurement?',
                                 'Measurement Type',
                                 ['PDD', 'MLIC']     )
@@ -121,7 +70,6 @@ print(f'Measurement Type = {measurement_type}\n')
 
 
 if measurement_type == 'PDD':
-    # If PDD then can select the PDD equipment (see comments from prev section)
     cursor.execute('select * from [PDD Equipment Query]')
     # Using list comprehension requires zip function and is less readable
     devices = []
@@ -137,9 +85,9 @@ if measurement_type == 'PDD':
         eg.msgbox('Please re-run the code and select a device')
         raise SystemExit
     print(f'Chamber/Device Used = {device}\n')
-elif MeasurementType == 'MLIC':
-    eg.msgbox( 'MLIC code not complete as awaiting database module and queries ' \
-               'to be written'  )
+elif measurement_type == 'MLIC':
+    eg.msgbox('MLIC code not complete as awaiting database module and queries '
+              'to be written')
     raise SystemExit
 
 # Run a check to make sure the device type matches the data type
@@ -157,55 +105,122 @@ if category == 'PDD Chamber':
         raise SystemExit
 
 # Enter the WET offset through a user entry box
-OffSet = enterbox("Enter WET Offset (mm)", "WET Offset", ('0'))
-# Ensure something was selected for WET thickness
-if OffSet == None:
-    msgbox( 'Please re-run the program and enter an offset, even if it\'s 0.0',
-            title = 'WET box closed without entry'  )
-    exit()
-print('[0]\nWET = ' + str(OffSet) + '\n')
-# Ensure entered WET value is a sensible entry (i.e. a number)
-# Offset will be entered as a string so try turning it into a float. If Offset
-# can't be turned into a float then a number wasn't entered by the user
+offset = eg.enterbox("Enter WET Offset (mm)", "WET Offset", ('0'))
+if not offset:
+    eg.msgbox('Offset Value required to run '
+              'Code will terminate',
+              title = 'No WET value entered'  )
+    raise SystemExit
 try:
-    float(OffSet)
-except ValueError:
-    msgbox( 'Please re-run the program and enter an appropriate \
-            value for the WET offset', title='WET Value Error' )
-    exit()
-# Now that the check is done OffSet can actually be turned into a float
-OffSet = float(OffSet)
-
-
-
-
-
-################################################################################
-######################### REFERENCE DATA CHECK #################################
-
-# ###################
-# Need to check that the reference data which is stored on the quality system
-# drive still matches the reference data that is stored in the database. To do
-# this the code needs to connect to and read out the data stored in the database
-# To make this work a query is used which finds the 'current' database reference
-# data.
-# ####################
+    offset = float(offset)
+except (ValueError, TypeError) as e:
+    eg.msgbox( 'Please re-run the program and enter an appropriate '
+               'value for the WET offset', title='WET Value Error' )
+    raise SystemExit
+print(f'[0]\nWET = {str(offset)} \n')
 
 print('\nRunning the quality system data check...')
 
-# Access the database and select the data from the PDD Reference Data saved
-# there. Save the data into a DataFrame using Pandas
-DatabaseRefData = pd.read_sql(  'select  [Gantry], [Energy], [Prox 80], ' \
+###############################################################################
+# CHECK REFERENCE DATA FOR BOTH TPS AND CURRENT Gantry
+###############################################################################
+
+### Gantry specific reference data from DataBase
+ref_props_gant_db = pd.read_sql('select  [Gantry], [Energy], [Prox 80], ' \
                                 '[Prox 90], [Dist 90], [Dist 80], [Dist 20], ' \
                                 '[Dist 10], [Fall Off], [Halo Ratio], [PTPR] ' \
                                 'from [PDD Reference Data Current Query] ' \
-                                'where [Gantry]=\'' + str(Gantry) + '\'', conn)
-# Order the dataframe and then reset the index (to start at 0 in the new order)
-DatabaseRefData.sort_values(by=['gantry', 'energy'], inplace=True)
-DatabaseRefData = DatabaseRefData.reset_index(drop=True)
+                                'where [Gantry]=\'' + str(gantry) + '\'', conn)
+
+ref_props_gant_db.sort_values(by=['gantry', 'energy'], inplace=True)
+ref_props_gant_db = ref_props_gant_db.reset_index(drop=True)
 # Also need to round the dataframe to a set value to match any calculated
 # fields (e.g. fall off)
-DatabaseRefData = DatabaseRefData.round(rounddata)
+# ref_props_gant_db = ref_props_gant_db.round(rounddata)
+print(ref_props_gant_db)
+
+
+### TPS Reference Data in DataBase
+cursor.execute('select * from [PDD Reference Data Current Plan Ref Query]')
+PlanRefGantry = cursor.fetchall()
+PlanRefGantry = PlanRefGantry[0][1]
+ref_props_tps_db = pd.read_sql(  'select  [Gantry], [Energy], [Prox 80], ' \
+                                    '[Prox 90], [Dist 90], [Dist 80], ' \
+                                    '[Dist 20], [Dist 10], [Fall Off], ' \
+                                    '[Halo Ratio], [PTPR] from [PDD ' \
+                                    'Reference Data Current Plan Ref Query] '
+                                    , conn  )
+ref_props_tps_db.sort_values(by=['gantry', 'energy'], inplace=True)
+ref_props_tps_db = ref_props_tps_db.reset_index(drop=True)
+ref_props_tps_db = ref_props_tps_db.round(rounddata)
+
+### Gantry specific reference data from QS
+
+ref_data_gant_qs = directory_to_dictionary(os.path.join(refdata_dir, gantry))
+ref_props_gant_qs = []
+for key in sorted(ref_data_gant_qs.keys()):
+    metrics = PeakProperties(ref_data_gant_qs[key], key)
+
+    # a = round(metrics[key].PTPR,rounddata)
+    ref_props_gant_qs.append([machines[0], key,
+                        round(metrics.Prox80,rounddata),
+                        round(metrics.Prox90,rounddata),
+                        round(metrics.Dist90,rounddata),
+                        round(metrics.Dist80,rounddata),
+                        round(metrics.Dist20,rounddata),
+                        round(metrics.Dist10,rounddata),
+                        round(metrics.FallOff,rounddata),
+                        round(metrics.HaloRat,rounddata),
+                        round((metrics.PTPR),rounddata)
+                        ])
+ref_props_gant_qs = pd.DataFrame(ref_props_gant_qs,
+                                      columns = ['gantry', 'energy',
+                                                 'prox 80', 'prox 90',
+                                                 'dist 90', 'dist 80',
+                                                 'dist 20', 'dist 10',
+                                                 'fall off', 'halo ratio',
+                                                 'ptpr'
+                                                 ]
+                                      )
+
+### TPS reference data from QS
+
+ref_data_tps_qs = directory_to_dictionary(os.path.join(refdata_dir, gantry))
+ref_props_tps_qs = []
+for key in sorted(ref_data_tps_qs.keys()):
+    metrics = PeakProperties(ref_data_tps_qs[key], key)
+
+    # a = round(metrics[key].PTPR,rounddata)
+    ref_props_tps_qs.append([machines[0], key,
+                        round(metrics.Prox80,rounddata),
+                        round(metrics.Prox90,rounddata),
+                        round(metrics.Dist90,rounddata),
+                        round(metrics.Dist80,rounddata),
+                        round(metrics.Dist20,rounddata),
+                        round(metrics.Dist10,rounddata),
+                        round(metrics.FallOff,rounddata),
+                        round(metrics.HaloRat,rounddata),
+                        round((metrics.PTPR),rounddata)
+                        ])
+ref_props_tps_qs = pd.DataFrame(ref_props_tps_qs,
+                                      columns = ['gantry', 'energy',
+                                                 'prox 80', 'prox 90',
+                                                 'dist 90', 'dist 80',
+                                                 'dist 20', 'dist 10',
+                                                 'fall off', 'halo ratio',
+                                                 'ptpr'
+                                                 ]
+                                      )
+
+
+
+
+print(ref_props_gant_qs==ref_props_gant_db)
+# ref_data_properties = pd.DataFrame.from_dict(ref_data_properties)
+
+
+exit()
+
 
 # Do the same for the plan reference data (see coments above). Also find out
 # what gantry contains the planing reference data (which will be useful for
@@ -213,15 +228,15 @@ DatabaseRefData = DatabaseRefData.round(rounddata)
 cursor.execute('select * from [PDD Reference Data Current Plan Ref Query]')
 PlanRefGantry = cursor.fetchall()
 PlanRefGantry = PlanRefGantry[0][1]
-DatabasePlanRefData = pd.read_sql(  'select  [Gantry], [Energy], [Prox 80], ' \
+ref_props_tps_db = pd.read_sql(  'select  [Gantry], [Energy], [Prox 80], ' \
                                     '[Prox 90], [Dist 90], [Dist 80], ' \
                                     '[Dist 20], [Dist 10], [Fall Off], ' \
                                     '[Halo Ratio], [PTPR] from [PDD ' \
                                     'Reference Data Current Plan Ref Query] '
                                     , conn  )
-DatabasePlanRefData.sort_values(by=['gantry', 'energy'], inplace=True)
-DatabasePlanRefData = DatabasePlanRefData.reset_index(drop=True)
-DatabasePlanRefData = DatabasePlanRefData.round(rounddata)
+ref_props_tps_db.sort_values(by=['gantry', 'energy'], inplace=True)
+ref_props_tps_db = ref_props_tps_db.reset_index(drop=True)
+ref_props_tps_db = ref_props_tps_db.round(rounddata)
 
 ####################
 # Major loop to extract data from reference files saved in the quality system
@@ -312,8 +327,8 @@ for x in GantryList:
 # then run a bit of troubleshooting code which will run through element by
 # element and print to the terminal any elements which do not match.
 
-Array = [   [DatabaseRefData, QualSysRefData],
-            [DatabasePlanRefData, QualSysPlanRefData]   ]
+Array = [   [ref_props_gant_db, QualSysRefData],
+            [ref_props_tps_db, QualSysPlanRefData]   ]
 Dummy = [0, 1]
 for i in Dummy:
     if not (Array[i][0].equals(Array[i][1])):
@@ -394,7 +409,7 @@ print('\nQuality system data check complete. All good :)')
 if not ynbox(msg =  'Please confirm that the following information is ' \
                     'correct... \n\nOperator = ' + Operator + '\nGantry = ' +
                     Gantry + '\nMeasurement Type = ' + MeasurementType +
-                    '\nChamber/Device = ' + Device + '\nWET = ' + str(OffSet),
+                    '\nChamber/Device = ' + Device + '\nWET = ' + str(offset),
                     title = 'User Input Confirmation'):
     msgbox( 'User inputs not confirmed. Please re-run code and enter correct ' \
             'inputs')
