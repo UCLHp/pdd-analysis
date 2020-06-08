@@ -126,43 +126,38 @@ print('\nRunning the quality system data check...')
 ###############################################################################
 
 ### Gantry specific reference data from DataBase
-ref_props_gant_db = pd.read_sql('select  [Gantry], [Energy], [Prox 80], ' \
+ref_props_gant_db = pd.read_sql('select  [Energy], [Prox 80], ' \
                                 '[Prox 90], [Dist 90], [Dist 80], [Dist 20], ' \
                                 '[Dist 10], [Fall Off], [Halo Ratio], [PTPR] ' \
                                 'from [PDD Reference Data Current Query] ' \
                                 'where [Gantry]=\'' + str(gantry) + '\'', conn)
 
-ref_props_gant_db.sort_values(by=['gantry', 'energy'], inplace=True)
+ref_props_gant_db.sort_values(by=['energy'], inplace=True)
 ref_props_gant_db = ref_props_gant_db.reset_index(drop=True)
 # Also need to round the dataframe to a set value to match any calculated
 # fields (e.g. fall off)
-# ref_props_gant_db = ref_props_gant_db.round(rounddata)
-print(ref_props_gant_db)
+ref_props_gant_db = ref_props_gant_db.round(rounddata)
+
 
 
 ### TPS Reference Data in DataBase
-cursor.execute('select * from [PDD Reference Data Current Plan Ref Query]')
-PlanRefGantry = cursor.fetchall()
-PlanRefGantry = PlanRefGantry[0][1]
-ref_props_tps_db = pd.read_sql(  'select  [Gantry], [Energy], [Prox 80], ' \
-                                    '[Prox 90], [Dist 90], [Dist 80], ' \
-                                    '[Dist 20], [Dist 10], [Fall Off], ' \
-                                    '[Halo Ratio], [PTPR] from [PDD ' \
-                                    'Reference Data Current Plan Ref Query] '
-                                    , conn  )
-ref_props_tps_db.sort_values(by=['gantry', 'energy'], inplace=True)
+ref_props_tps_db = pd.read_sql('select  [Energy], [Prox 80], ' \
+                               '[Prox 90], [Dist 90], [Dist 80], ' \
+                               '[Dist 20], [Dist 10], [Fall Off], ' \
+                               '[Halo Ratio], [PTPR] from [PDD ' \
+                               'Reference Data Current Plan Ref Query]'
+                               , conn
+                               )
+ref_props_tps_db.sort_values(by=['energy'], inplace=True)
 ref_props_tps_db = ref_props_tps_db.reset_index(drop=True)
 ref_props_tps_db = ref_props_tps_db.round(rounddata)
 
 ### Gantry specific reference data from QS
-
 ref_data_gant_qs = directory_to_dictionary(os.path.join(refdata_dir, gantry))
 ref_props_gant_qs = []
 for key in sorted(ref_data_gant_qs.keys()):
     metrics = PeakProperties(ref_data_gant_qs[key], key)
-
-    # a = round(metrics[key].PTPR,rounddata)
-    ref_props_gant_qs.append([machines[0], key,
+    ref_props_gant_qs.append([key,
                         round(metrics.Prox80,rounddata),
                         round(metrics.Prox90,rounddata),
                         round(metrics.Dist90,rounddata),
@@ -171,10 +166,10 @@ for key in sorted(ref_data_gant_qs.keys()):
                         round(metrics.Dist10,rounddata),
                         round(metrics.FallOff,rounddata),
                         round(metrics.HaloRat,rounddata),
-                        round((metrics.PTPR),rounddata)
+                        round(metrics.PTPR,rounddata)
                         ])
 ref_props_gant_qs = pd.DataFrame(ref_props_gant_qs,
-                                      columns = ['gantry', 'energy',
+                                      columns = ['energy',
                                                  'prox 80', 'prox 90',
                                                  'dist 90', 'dist 80',
                                                  'dist 20', 'dist 10',
@@ -184,14 +179,11 @@ ref_props_gant_qs = pd.DataFrame(ref_props_gant_qs,
                                       )
 
 ### TPS reference data from QS
-
 ref_data_tps_qs = directory_to_dictionary(os.path.join(refdata_dir, gantry))
 ref_props_tps_qs = []
 for key in sorted(ref_data_tps_qs.keys()):
     metrics = PeakProperties(ref_data_tps_qs[key], key)
-
-    # a = round(metrics[key].PTPR,rounddata)
-    ref_props_tps_qs.append([machines[0], key,
+    ref_props_tps_qs.append([key,
                         round(metrics.Prox80,rounddata),
                         round(metrics.Prox90,rounddata),
                         round(metrics.Dist90,rounddata),
@@ -200,10 +192,10 @@ for key in sorted(ref_data_tps_qs.keys()):
                         round(metrics.Dist10,rounddata),
                         round(metrics.FallOff,rounddata),
                         round(metrics.HaloRat,rounddata),
-                        round((metrics.PTPR),rounddata)
+                        round(metrics.PTPR,rounddata)
                         ])
 ref_props_tps_qs = pd.DataFrame(ref_props_tps_qs,
-                                      columns = ['gantry', 'energy',
+                                      columns = ['energy',
                                                  'prox 80', 'prox 90',
                                                  'dist 90', 'dist 80',
                                                  'dist 20', 'dist 10',
@@ -212,11 +204,52 @@ ref_props_tps_qs = pd.DataFrame(ref_props_tps_qs,
                                                  ]
                                       )
 
+if not ref_props_gant_db.shape == ref_props_gant_qs.shape:
+    eg.msgbox('Discrepancy in gantry specific reference data between QS and DB '
+              'Data sizes do not match '
+              'Code will terminate',
+              'Reference Data Error')
+    raise SystemExit
+
+if not ref_props_tps_db.shape == ref_props_tps_qs.shape:
+    eg.msgbox('Discrepancy in tps reference data between QS and DB '
+              'Data sizes do not match'
+              'Code will terminate',
+              'Reference Data Error')
+    raise SystemExit
 
 
+gant_mismatch_map = (ref_props_gant_qs == ref_props_gant_db)
+# gant_mismatch_map = gant_mismatch_map.insert(0,'gantry',
+#                                              ref_props_gant_db['energy'],
+#                                              )
+tps_mismatch_map = (ref_props_tps_qs == ref_props_tps_db)
 
-print(ref_props_gant_qs==ref_props_gant_db)
+# tps_mismatch_map = tps_mismatch_map.insert(0,'gantry',
+#                                            list(ref_props_tps_db['energy']),
+#                                            )
+print(tps_mismatch_map)
+exit()
+
+if not np.allclose(ref_props_gant_qs, ref_props_gant_db, atol=0.001):
+    eg.msgbox('Discrepancy in gantry specific reference data between QS and DB '
+              'Please check the datapoints listed in the terminal',
+              'Reference Data Error')
+    print(gant_mismatch_map)
+    input('Press Enter To Close Window')
+    raise SystemExit
+
+if not np.allclose(ref_props_tps_qs, ref_props_tps_db, atol=0.0001):
+    eg.msgbox('Discrepancy in tps reference data between QS and DB '
+              'Please check the datapoints listed in the terminal',
+              'Reference Data Error')
+    print(tps_mismatch_map)
+    input('Press Enter To Close Window')
+    raise SystemExit
+
+
 # ref_data_properties = pd.DataFrame.from_dict(ref_data_properties)
+eg.msgbox('It Ran', 'Data OK')
 
 
 exit()
