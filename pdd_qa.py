@@ -3,10 +3,7 @@ import easygui as eg
 import os
 from pdd_module import *
 from datetime import date
-from openpyxl import workbook, load_workbook
-import csv
 import pypyodbc
-import random
 import pandas as pd
 
 ###############################################################################
@@ -204,49 +201,49 @@ ref_props_tps_qs = pd.DataFrame(ref_props_tps_qs,
                                                  ]
                                       )
 
-# if not ref_props_gant_db.shape == ref_props_gant_qs.shape:
-#     eg.msgbox('Discrepancy in gantry reference data between QS and DB \n'
-#               'Data sizes do not match \n'
-#               'Code will terminate',
-#               'Reference Data Error')
-#     raise SystemExit
-#
-# if not ref_props_tps_db.shape == ref_props_tps_qs.shape:
-#     eg.msgbox('Discrepancy in tps reference data between QS and DB \n'
-#               'Data sizes do not match \n'
-#               'Code will terminate',
-#               'Reference Data Error')
-#     raise SystemExit
-#
-# if not np.allclose(ref_props_gant_qs, ref_props_gant_db, atol=0.001):
-#     eg.msgbox('Discrepancy in gantry specific reference data between QS and DB'
-#               'Please check the values printed in the terminal',
-#               'Reference Data Error')
-#     print("Data Base Values \n")
-#     print(ref_props_gant_db)
-#     print("Quality System Values \n")
-#     print(ref_props_gant_qs)
-#     print("Difference \n")
-#     Difference = ref_props_gant_db - ref_props_gant_qs
-#     Difference['energy'] = ref_props_gant_qs['energy']
-#     print(Difference)
-#     input('Press Enter To Close Window')
-#     raise SystemExit
-#
-# if not np.allclose(ref_props_tps_qs, ref_props_tps_db, atol=0.001):
-#     eg.msgbox('Discrepancy in tps reference data between QS and DB'
-#               'Please check the values printed in the terminal',
-#               'Reference Data Error')
-#     print("Data Base Values \n")
-#     print(ref_props_tps_db)
-#     print("Quality System Values \n")
-#     print(ref_props_tps_qs)
-#     print("Difference \n")
-#     Difference = ref_props_tps_db - ref_props_tps_qs
-#     Difference['energy'] = ref_props_tps_qs['energy']
-#     print(Difference)
-#     input('Press Enter To Close Window')
-#     raise SystemExit
+if not ref_props_gant_db.shape == ref_props_gant_qs.shape:
+    eg.msgbox('Discrepancy in gantry reference data between QS and DB \n'
+              'Data sizes do not match \n'
+              'Code will terminate',
+              'Reference Data Error')
+    raise SystemExit
+
+if not ref_props_tps_db.shape == ref_props_tps_qs.shape:
+    eg.msgbox('Discrepancy in tps reference data between QS and DB \n'
+              'Data sizes do not match \n'
+              'Code will terminate',
+              'Reference Data Error')
+    raise SystemExit
+
+if not np.allclose(ref_props_gant_qs, ref_props_gant_db, atol=0.001):
+    eg.msgbox('Discrepancy in gantry specific reference data between QS and DB'
+              'Please check the values printed in the terminal',
+              'Reference Data Error')
+    print("Data Base Values \n")
+    print(ref_props_gant_db)
+    print("Quality System Values \n")
+    print(ref_props_gant_qs)
+    print("Difference \n")
+    Difference = ref_props_gant_db - ref_props_gant_qs
+    Difference['energy'] = ref_props_gant_qs['energy']
+    print(Difference)
+    input('Press Enter To Close Window')
+    raise SystemExit
+
+if not np.allclose(ref_props_tps_qs, ref_props_tps_db, atol=0.001):
+    eg.msgbox('Discrepancy in tps reference data between QS and DB'
+              'Please check the values printed in the terminal',
+              'Reference Data Error')
+    print("Data Base Values \n")
+    print(ref_props_tps_db)
+    print("Quality System Values \n")
+    print(ref_props_tps_qs)
+    print("Difference \n")
+    Difference = ref_props_tps_db - ref_props_tps_qs
+    Difference['energy'] = ref_props_tps_qs['energy']
+    print(Difference)
+    input('Press Enter To Close Window')
+    raise SystemExit
 
 print('\nQuality System Data Matches Database')
 
@@ -365,5 +362,5 @@ conn.commit()
 
 print('\nCompleted :)\n')
 
-eg.msgbox( 'Code has finished running. Please review results in QA Database',
-        title = 'All Energies Completed'    )
+eg.msgbox('Code has finished running. Please review results in QA Database',
+          title = 'All Energies Completed')
