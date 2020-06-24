@@ -4,6 +4,7 @@ from pdd_module import *
 from datetime import date
 import pypyodbc
 import pandas as pd
+import test.test_version
 
 ###############################################################################
 # SELECT DATA AND LOAD REFERENCE DIRECTORIES
