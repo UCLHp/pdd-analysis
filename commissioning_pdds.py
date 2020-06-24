@@ -54,7 +54,6 @@ for key in sorted(data.keys()):
         worksheet.set_column('E:E', 12.00)
         worksheet.set_column('G:G', 10.00)
 
-
         chart = workbook.add_chart({'type': 'scatter'})
         chart.add_series({
             'name': [str(int(key)), 0, 1],
