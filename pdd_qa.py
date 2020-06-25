@@ -15,7 +15,7 @@ dir = eg.diropenbox(title='Please select folder containing pdd data')
 if not dir:
     eg.msgbox('Please re-run the code and select a folder containing the data'
               ' to be analysed', title='Folder Selection Error')
-    exit()
+    raise SystemExit
 
 database_dir = ('\\\\krypton\\rtp-share$\\protons\\Work in Progress\\Christian'
                 '\\Database\\Proton\\Test FE - CB.accdb')
