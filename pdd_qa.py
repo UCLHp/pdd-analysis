@@ -210,7 +210,7 @@ if not ref_props_tps_db.shape == ref_props_tps_qs.shape:
 
 if not np.allclose(ref_props_gant_qs, ref_props_gant_db, atol=0.001):
     eg.msgbox('Discrepancy in gantry specific reference data between QS and DB'
-              'Please check the values printed in the terminal',
+              '\nPlease check the values printed in the terminal',
               'Reference Data Error')
     print("Data Base Values \n")
     print(ref_props_gant_db)
@@ -225,7 +225,7 @@ if not np.allclose(ref_props_gant_qs, ref_props_gant_db, atol=0.001):
 
 if not np.allclose(ref_props_tps_qs, ref_props_tps_db, atol=0.001):
     eg.msgbox('Discrepancy in tps reference data between QS and DB'
-              'Please check the values printed in the terminal',
+              '\nPlease check the values printed in the terminal',
               'Reference Data Error')
     print("Data Base Values \n")
     print(ref_props_tps_db)
