@@ -10,7 +10,7 @@ import test.test_version
 def main():
 
     test.test_version.check_version()
-    
+
     ###########################################################################
     # SELECT DATA AND LOAD REFERENCE DIRECTORIES
     ###########################################################################
@@ -296,6 +296,7 @@ def main():
         else:
             eg.msgbox('Only measurement types PDD or MLIC will work'
                       'Please re-run the code', title='Measurement type error')
+            raise SystemExit
 
         db = [file_date[key], current_date, operator, device, gantry,
               file_GA[key], int(key), round(metrics.Prox80, rounddata),
@@ -352,7 +353,14 @@ def main():
                'VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'
                '?,?,?,?,?)'
                )
-        cursor.execute(sql, db)
+        try:
+            cursor.execute(sql, db)
+        except pypyodbc.IntegrityError:
+            eg.msgbox('Data already exists in database\n'
+                      'Please come up with something original',
+                      title='Data duplication')
+            raise SystemExit
+
 
     conn.commit()
 
