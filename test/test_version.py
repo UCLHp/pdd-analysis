@@ -1,8 +1,6 @@
 import requests
 from urllib.request import urlopen, URLError
 
-print('Checking latest version release...\n')
-
 def get_last_master_commit(repo_url):
     """Return hash key of latest commit on master branch
     of given github repository"""
@@ -30,20 +28,27 @@ def internet_on():
 # if this is not updated after a further commit to the master branch
 # a warning will be flagged to the user.
 
-selfhash = '744921a011180d35c18d8bfdcae53c649eea4653'
+def check_version():
+    print('Checking latest version release...\n')
 
-if internet_on():
-    print('Internet connection established\n')
-    githash = get_last_master_commit('http://github.com/UCLHp/Spot_Analysis')
-    if not githash == selfhash:
+    selfhash = '744921a011180d35c18d8bfdcae53c649eea4653'
+
+    if internet_on():
+        print('Internet connection established\n')
+        repo = 'http://github.com/UCLHp/Spot_Analysis'
+        githash = get_last_master_commit(repo)
+        if not githash == selfhash:
+            print('VERSION NOT CONFIRMED')
+            print('Please check latest version on GitHub')
+            input('Press enter to continue')
+        else:
+            print("Version Confirmed\n")
+
+    else:
+        print('No internet connection detected')
         print('VERSION NOT CONFIRMED')
         print('Please check latest version on GitHub')
         input('Press enter to continue')
-    else:
-        print("Version Confirmed\n")
 
-else:
-    print('No internet connection detected')
-    print('VERSION NOT CONFIRMED')
-    print('Please check latest version on GitHub')
-    input('Press enter to continue')
+if __name__ == '__main__':
+    check_version()

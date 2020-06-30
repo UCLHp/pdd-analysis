@@ -5,68 +5,76 @@ import easygui as eg
 import xlsxwriter
 import test.test_version
 
-mcc_dir = eg.diropenbox(title='Please Select mcc directory')
-if not mcc_dir:
-    raise SystemExit
+def main():
 
-data = directory_to_dictionary(mcc_dir)
+    test.test_version.check_version()
 
-# User inputs offset in terms of WET (due to tank wall chamber thickness etc.)
-offset = eg.enterbox("Enter WET Offset (mm)", "WET Offset", ('0'))
+    mcc_dir = eg.diropenbox(title='Please Select mcc directory')
+    if not mcc_dir:
+        raise SystemExit
 
-try:
-    offset = float(offset)
-except (ValueError, TypeError) as e:
-    eg.msgbox("Please re-run with an appropriate value for the WET offset",
-              title="WET Value Error")
-    raise SystemExit
+    data = directory_to_dictionary(mcc_dir)
 
-data_properties = {}
-for key in data:
-    data_properties[key] = PeakProperties(data[key], key)
+    # User inputs offset in terms of WET (due to tank wall thickness etc.)
+    offset = eg.enterbox("Enter WET Offset (mm)", "WET Offset", ('0'))
 
-save_dir = eg.diropenbox(title='Please Select Save Location')
-workbook = xlsxwriter.Workbook(os.path.join(save_dir, 'Ref_results.xlsx'))
+    try:
+        offset = float(offset)
+    except (ValueError, TypeError) as e:
+        eg.msgbox("Please re-run with an appropriate value for the WET offset",
+                  title="WET Value Error")
+        raise SystemExit
 
-data_properties = {}
-gammas = {}
-for key in sorted(data.keys()):
-    if key in data.keys():
-        data[key][0] = data[key][0] + offset
-
+    data_properties = {}
+    for key in data:
         data_properties[key] = PeakProperties(data[key], key)
 
-        worksheet = workbook.add_worksheet(str(int(key)))
-        worksheet.write('A1', 'Depth (mm)')
-        worksheet.write_column('A2', data[key][0])
-        worksheet.write('B1', 'Dose (%)')
-        worksheet.write_column('B2', data[key][1])
-        worksheet.write('D1', 'Property')
-        worksheet.write_column('D2',
-                               list(data_properties[key].__dict__.keys()))
-        worksheet.write('E1', 'Value')
-        worksheet.write_column('E2',
-                               list(data_properties[key].__dict__.values()))
+    save_dir = eg.diropenbox(title='Please Select Save Location')
+    workbook = xlsxwriter.Workbook(os.path.join(save_dir, 'Ref_results.xlsx'))
 
-        worksheet.set_column('A:A', 11.00)
-        worksheet.set_column('B:B', 11.29)
-        worksheet.set_column('D:D', 10.00)
-        worksheet.set_column('E:E', 12.00)
-        worksheet.set_column('G:G', 10.00)
+    data_properties = {}
+    gammas = {}
+    for key in sorted(data.keys()):
+        if key in data.keys():
+            data[key][0] = data[key][0] + offset
 
-        chart = workbook.add_chart({'type': 'scatter'})
-        chart.add_series({
-            'name': [str(int(key)), 0, 1],
-            'categories': [str(int(key)), 1, 0, 1+len(data[key][0]), 0],
-            'values': "='"+str(int(key))+"'!$B$2:$B$"+str(1+len(data[key][1])),
-            'y2_axis': 0,
-            'line': {'color': 'red', 'width': 1, },
-            'marker': {'type': 'none'},
-        })
-        chart.set_size({'width': 900, 'height': 650})
-        chart.set_title({'name': "Measured PDD"})
+            data_properties[key] = PeakProperties(data[key], key)
 
-        worksheet.insert_chart('G2', chart)
-        print(str(key) + ' Done')
+            worksheet = workbook.add_worksheet(str(int(key)))
+            worksheet.write('A1', 'Depth (mm)')
+            worksheet.write_column('A2', data[key][0])
+            worksheet.write('B1', 'Dose (%)')
+            worksheet.write_column('B2', data[key][1])
+            worksheet.write('D1', 'Property')
+            worksheet.write_column('D2',
+                                   list(data_properties[key].__dict__.keys()))
+            worksheet.write('E1', 'Value')
+            worksheet.write_column('E2',
+                                   list(data_properties[key].__dict__.values()))
 
-workbook.close()
+            worksheet.set_column('A:A', 11.00)
+            worksheet.set_column('B:B', 11.29)
+            worksheet.set_column('D:D', 10.00)
+            worksheet.set_column('E:E', 12.00)
+            worksheet.set_column('G:G', 10.00)
+
+            chart = workbook.add_chart({'type': 'scatter'})
+            chart.add_series({
+                'name': [str(int(key)), 0, 1],
+                'categories': [str(int(key)), 1, 0, 1+len(data[key][0]), 0],
+                'values': "='"+str(int(key))+"'!$B$2:$B$"+str(1+len(data[key][1])),
+                'y2_axis': 0,
+                'line': {'color': 'red', 'width': 1, },
+                'marker': {'type': 'none'},
+            })
+            chart.set_size({'width': 900, 'height': 650})
+            chart.set_title({'name': "Measured PDD"})
+
+            worksheet.insert_chart('G2', chart)
+            print(str(key) + ' Done')
+
+    workbook.close()
+
+
+if __name__ == '__main__':
+    main()
