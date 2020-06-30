@@ -24,7 +24,7 @@ def readgiraffe(filename, normalise=True):
     returns the data in x y format along with datetime of acquisition
     '''
     if filename[-3:] != 'csv':
-        eg.msgbox('Not a csv file')
+        eg.msgbox(f'{filename} is not a csv file')
         return None, None
 
     with open(filename, 'r') as file:
