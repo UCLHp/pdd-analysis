@@ -32,8 +32,6 @@ def main():
     save_dir = eg.diropenbox(title='Please Select Save Location')
     workbook = xlsxwriter.Workbook(os.path.join(save_dir, 'Ref_results.xlsx'))
 
-    data_properties = {}
-    gammas = {}
     for key in sorted(data.keys()):
         if key in data.keys():
             data[key][0] = data[key][0] + offset
