@@ -33,43 +33,43 @@ def main():
     workbook = xlsxwriter.Workbook(os.path.join(save_dir, 'Ref_results.xlsx'))
 
     for key in sorted(data.keys()):
-        if key in data.keys():
-            data[key][0] = data[key][0] + offset
+        
+        data[key][0] = data[key][0] + offset
 
-            data_properties[key] = PeakProperties(data[key], key)
+        data_properties[key] = PeakProperties(data[key], key)
 
-            worksheet = workbook.add_worksheet(str(int(key)))
-            worksheet.write('A1', 'Depth (mm)')
-            worksheet.write_column('A2', data[key][0])
-            worksheet.write('B1', 'Dose (%)')
-            worksheet.write_column('B2', data[key][1])
-            worksheet.write('D1', 'Property')
-            worksheet.write_column('D2',
-                                   list(data_properties[key].__dict__.keys()))
-            worksheet.write('E1', 'Value')
-            worksheet.write_column('E2',
-                                   list(data_properties[key].__dict__.values()))
+        worksheet = workbook.add_worksheet(str(int(key)))
+        worksheet.write('A1', 'Depth (mm)')
+        worksheet.write_column('A2', data[key][0])
+        worksheet.write('B1', 'Dose (%)')
+        worksheet.write_column('B2', data[key][1])
+        worksheet.write('D1', 'Property')
+        worksheet.write_column('D2',
+                               list(data_properties[key].__dict__.keys()))
+        worksheet.write('E1', 'Value')
+        worksheet.write_column('E2',
+                               list(data_properties[key].__dict__.values()))
 
-            worksheet.set_column('A:A', 11.00)
-            worksheet.set_column('B:B', 11.29)
-            worksheet.set_column('D:D', 10.00)
-            worksheet.set_column('E:E', 12.00)
-            worksheet.set_column('G:G', 10.00)
+        worksheet.set_column('A:A', 11.00)
+        worksheet.set_column('B:B', 11.29)
+        worksheet.set_column('D:D', 10.00)
+        worksheet.set_column('E:E', 12.00)
+        worksheet.set_column('G:G', 10.00)
 
-            chart = workbook.add_chart({'type': 'scatter'})
-            chart.add_series({
-                'name': [str(int(key)), 0, 1],
-                'categories': [str(int(key)), 1, 0, 1+len(data[key][0]), 0],
-                'values': "='"+str(int(key))+"'!$B$2:$B$"+str(1+len(data[key][1])),
-                'y2_axis': 0,
-                'line': {'color': 'red', 'width': 1, },
-                'marker': {'type': 'none'},
-            })
-            chart.set_size({'width': 900, 'height': 650})
-            chart.set_title({'name': "Measured PDD"})
+        chart = workbook.add_chart({'type': 'scatter'})
+        chart.add_series({
+            'name': [str(int(key)), 0, 1],
+            'categories': [str(int(key)), 1, 0, 1+len(data[key][0]), 0],
+            'values': "='"+str(int(key))+"'!$B$2:$B$"+str(1+len(data[key][1])),
+            'y2_axis': 0,
+            'line': {'color': 'red', 'width': 1, },
+            'marker': {'type': 'none'},
+        })
+        chart.set_size({'width': 900, 'height': 650})
+        chart.set_title({'name': "Measured PDD"})
 
-            worksheet.insert_chart('G2', chart)
-            print(str(key) + ' Done')
+        worksheet.insert_chart('G2', chart)
+        print(str(key) + ' Done')
 
     workbook.close()
 
