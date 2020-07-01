@@ -25,15 +25,11 @@ def main():
                   title="WET Value Error")
         raise SystemExit
 
-    data_properties = {}
-    for key in data:
-        data_properties[key] = PeakProperties(data[key], key)
-
     save_dir = eg.diropenbox(title='Please Select Save Location')
     workbook = xlsxwriter.Workbook(os.path.join(save_dir, 'Ref_results.xlsx'))
 
+    data_properties = {}
     for key in sorted(data.keys()):
-        
         data[key][0] = data[key][0] + offset
 
         data_properties[key] = PeakProperties(data[key], key)
