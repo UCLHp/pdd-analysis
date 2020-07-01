@@ -103,9 +103,8 @@ def directory_to_dictionary(dir):
     keys that equate to the energy taken from the file name
     '''
     ref_data = {}
-    for filename in os.listdir(dir):
-        path = os.path.join(dir, filename)
-        file = os.path.basename(filename)  # Get filename without its directory
+    for file in os.listdir(dir):
+        path = os.path.join(dir, file)
         try:
             name = float(os.path.splitext(file)[0])
         except ValueError:
@@ -122,7 +121,7 @@ def directory_to_dictionary(dir):
                           title="Reference Data Error")
                 raise SystemExit
         if file[-3:] == 'csv':
-            ref_data[name], date = readgiraffe(os.path.join(dir, filename))
+            ref_data[name], date = readgiraffe(path)
     return ref_data
 
 
