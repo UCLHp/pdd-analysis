@@ -16,6 +16,33 @@ NIST = np.asarray([(70, 40.75), (75, 46.11), (80, 51.76), (85, 57.69),
                    ]
                   )
 
+class Giraffe:
+    def __init__(self, csv):
+        with open(csv, 'r') as file:
+            self.full_csv = [line.rstrip().lstrip() for line in file]
+
+        depth_index = [self.full_csv.index(x) for x in self.full_csv
+                       if x.startswith('Curve depth')][0]
+        depth = self.full_csv[1+depth_index].split(';')
+
+        dose_index = [self.full_csv.index(x) for x in self.full_csv
+                      if x.startswith('Curve gains')][0]
+        dose = self.full_csv[1+dose_index].split(';')
+
+        # Remove blank strings
+        depth = [i for i in depth if i]
+        dose = [i for i in dose if i]
+
+        date = self.full_csv[1][6:25]
+        # Read the date as formatted in csv file
+        date = datetime.datetime.strptime(date, '%Y-%m-%dT%H:%M:%S')
+
+        self.data = np.asarray([depth, dose]).astype(float)
+        self.date = date.strftime('%d/%m/%Y %H:%M:%S')
+
+    def normalise(self):
+        self.data[1] = 100*self.data[1]/max(self.data[1])
+
 
 def readgiraffe(filename, normalise=True):
     '''
