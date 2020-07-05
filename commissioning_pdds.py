@@ -17,7 +17,7 @@ def main():
 
     # User inputs offset in terms of WET (due to tank wall thickness etc.)
     offset = eg.enterbox("Enter WET Offset (mm)", "WET Offset", ('0'))
-
+# Battery low
     try:
         offset = float(offset)
     except (ValueError, TypeError) as e:
