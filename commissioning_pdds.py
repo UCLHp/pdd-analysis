@@ -30,15 +30,17 @@ def main():
 
     data_properties = {}
     for key in sorted(data.keys()):
-        data[key][0] = data[key][0] + offset
+        data[key].data[0] = data[key].data[0] + offset
 
-        data_properties[key] = PeakProperties(data[key], key)
+        data_properties[key] = PeakProperties(data[key].data, key)
+
+        normalise(data[key].data, at_depth=25)
 
         worksheet = workbook.add_worksheet(str(int(key)))
         worksheet.write('A1', 'Depth (mm)')
-        worksheet.write_column('A2', data[key][0])
+        worksheet.write_column('A2', data[key].data[0])
         worksheet.write('B1', 'Dose (%)')
-        worksheet.write_column('B2', data[key][1])
+        worksheet.write_column('B2', data[key].data[1])
         worksheet.write('D1', 'Property')
         worksheet.write_column('D2',
                                list(data_properties[key].__dict__.keys()))
@@ -55,8 +57,8 @@ def main():
         chart = workbook.add_chart({'type': 'scatter'})
         chart.add_series({
             'name': [str(int(key)), 0, 1],
-            'categories': [str(int(key)), 1, 0, 1+len(data[key][0]), 0],
-            'values': "='"+str(int(key))+"'!$B$2:$B$"+str(1+len(data[key][1])),
+            'categories': [str(int(key)), 1, 0, 1+len(data[key].data[0]), 0],
+            'values': "='"+str(int(key))+"'!$B$2:$B$"+str(1+len(data[key].data[1])),
             'y2_axis': 0,
             'line': {'color': 'red', 'width': 1, },
             'marker': {'type': 'none'},

@@ -63,7 +63,7 @@ def main():
 
     ref_data_properties = {}
     for key in ref_data:
-        ref_data_properties[key] = PeakProperties(ref_data[key], key)
+        ref_data_properties[key] = PeakProperties(ref_data[key].data, key)
 
     save_dir = eg.diropenbox(title='Please Select Save Location')
 
@@ -78,25 +78,26 @@ def main():
     gammas = {}
     for key in sorted(test_data.keys()):
         if key in ref_data.keys():
-            test_data[key][0] = test_data[key][0] + offset
+            test_data[key].data[0] = test_data[key].data[0] + offset
 
-            noise = np.random.normal(0, 1, len(test_data[key][1]))
-            test_data[key][1] = test_data[key][1] + noise
+            # Option to add noise to data for test purposes, uncomment below:
+            noise = np.random.normal(0, 1, len(test_data[key].data[1]))
+            test_data[key].data[1] = test_data[key].data[1] + noise
 
-            test_data_properties[key] = PeakProperties(test_data[key], key)
-            gammas[key] = two_pdds(test_data[key], ref_data[key], setgamma, crit)
+            test_data_properties[key] = PeakProperties(test_data[key].data, key)
+            gammas[key] = pdd_gamma(test_data[key].data, ref_data[key].data, setgamma, crit)
 
             passcrit = 100.00*sum(x < 1 for x in gammas[key]) / ((len(gammas[key]) - sum(np.isnan(x) for x in gammas[key])))
 
             worksheet = workbook.add_worksheet(str(int(key)))
             worksheet.write('A1', 'Test Data Depth (mm)')
-            worksheet.write_column('A2', test_data[key][0])
+            worksheet.write_column('A2', test_data[key].data[0])
             worksheet.write('B1', 'Test Data Dose (%)')
-            worksheet.write_column('B2', test_data[key][1])
+            worksheet.write_column('B2', test_data[key].data[1])
             worksheet.write('C1', 'Reference Data Depth (mm)')
-            worksheet.write_column('C2', ref_data[key][0])
+            worksheet.write_column('C2', ref_data[key].data[0])
             worksheet.write('D1', 'Reference Data Dose (%)')
-            worksheet.write_column('D2', ref_data[key][1])
+            worksheet.write_column('D2', ref_data[key].data[1])
             worksheet.write('E1', 'Gamma Values')
             worksheet.write_column('E2', gammas[key])
             worksheet.write('G1', 'Property')
@@ -125,16 +126,16 @@ def main():
             chart = workbook.add_chart({'type': 'scatter'})
             chart.add_series({
                 'name': [str(int(key)), 0, 1],
-                'categories': [str(int(key)), 1, 0, 1+len(test_data[key][0]), 0],
-                'values': "='"+str(int(key))+"'!$B$2:$B$"+str(1+len(test_data[key][1])),
+                'categories': [str(int(key)), 1, 0, 1+len(test_data[key].data[0]), 0],
+                'values': "='"+str(int(key))+"'!$B$2:$B$"+str(1+len(test_data[key].data[1])),
                 'y2_axis': 0,
                 'line': {'color': 'red', 'width': 1, },
                 'marker': {'type': 'none'},
             })
             chart.add_series({
                 'name': [str(int(key)), 0, 3],
-                'categories': [str(int(key)), 1, 2, 1+len(ref_data[key][0]), 2],
-                'values': "='"+str(int(key))+"'!$D$2:$D$"+str(1+len(ref_data[key][1])),
+                'categories': [str(int(key)), 1, 2, 1+len(ref_data[key].data[0]), 2],
+                'values': "='"+str(int(key))+"'!$D$2:$D$"+str(1+len(ref_data[key].data[1])),
                 'y2_axis': 0,
                 'line': {'color': 'blue', 'width': 1, },
                 'marker': {'type': 'none'},
@@ -142,7 +143,7 @@ def main():
             chart.set_y_axis({'min': 0})
             chart.add_series({
                 'name': [str(int(key)), 0, 4],
-                'categories': [str(int(key)), 1, 0, 1 + len(test_data[key][0]), 0],
+                'categories': [str(int(key)), 1, 0, 1 + len(test_data[key].data[0]), 0],
                 'values': "='"+str(int(key))+"'!$E$2:$E$"+str(1+len(gammas[key])),
                 'y2_axis': 1,
                 'marker': {'type': 'triangle', 'size': 4},

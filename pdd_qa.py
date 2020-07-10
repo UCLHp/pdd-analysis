@@ -159,7 +159,7 @@ def main():
     ref_data_gant_qs = directory_to_dictionary(os.path.join(refdata_dir, gantry))
     ref_props_gant_qs = []
     for key in sorted(ref_data_gant_qs.keys()):
-        metrics = PeakProperties(ref_data_gant_qs[key], key)
+        metrics = PeakProperties(ref_data_gant_qs[key].data, key)
         ref_props_gant_qs.append([key, round(metrics.Prox80, rounddata),
                                   round(metrics.Prox90, rounddata),
                                   round(metrics.Dist90, rounddata),
@@ -182,7 +182,7 @@ def main():
     ref_data_tps_qs = directory_to_dictionary(os.path.join(refdata_dir, gantry))
     ref_props_tps_qs = []
     for key in sorted(ref_data_tps_qs.keys()):
-        metrics = PeakProperties(ref_data_tps_qs[key], key)
+        metrics = PeakProperties(ref_data_tps_qs[key].data, key)
         ref_props_tps_qs.append([key, round(metrics.Prox80, rounddata),
                                  round(metrics.Prox90, rounddata),
                                  round(metrics.Dist90, rounddata),
@@ -281,25 +281,16 @@ def main():
                       'for the Gantry Angle', title='Gantry Angle Value Error')
             raise SystemExit
 
-    file_date = {}
-    file_GA = {}
-    for key in sorted(measured_data.keys()):
-        metrics = PeakProperties(ref_data_tps_qs[key], key)
-        location = os.path.join(dir, str(int(key)))+'.mcc'
-        if measurement_type == 'PDD':
-            # temp1&2 are unrequired outputs from the readmcc function
-            temp1, temp2, file_date[key], file_GA[key] = readmcc(location)
-        elif measurement_type == 'MLIC':
-            # temp1 is an unrequired output from the readgiraffe function
-            temp1, file_date[key] = readgiraffe(location)
-            file_GA[key] = GA
-        else:
-            eg.msgbox('Only measurement types PDD or MLIC will work'
-                      'Please re-run the code', title='Measurement type error')
-            raise SystemExit
 
-        db = [file_date[key], current_date, operator, device, gantry,
-              file_GA[key], int(key), round(metrics.Prox80, rounddata),
+    for key in sorted(measured_data.keys()):
+        metrics = PeakProperties(measured_data[key].data, key)
+        location = os.path.join(dir, str(int(key)))
+        if measurement_type == 'MLIC':
+            # temp1 is an unrequired output from the readgiraffe function
+            measured_data[key].gantry_angle = GA
+
+        db = [measured_data[key].date, current_date, operator, device, gantry,
+              measured_data[key].gantry_angle, int(key), round(metrics.Prox80, rounddata),
               round(metrics.Prox90, rounddata), round(metrics.Dist90, rounddata),
               round(metrics.Dist80, rounddata), round(metrics.Dist20, rounddata),
               round(metrics.Dist10, rounddata), round(metrics.HaloRat, rounddata),
@@ -362,7 +353,7 @@ def main():
             raise SystemExit
 
 
-    conn.commit()
+    # conn.commit()
 
     print('\nCompleted :)\n')
 
