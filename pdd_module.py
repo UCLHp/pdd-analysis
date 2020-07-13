@@ -229,6 +229,7 @@ def pdd_gamma(test_data, ref_data, setgamma, crit):
 
     # For each test data point, calculate the gamma index compared to every
     # point in the interpolated reference data and select the minimum
+    # https://aapm.onlinelibrary.wiley.com/doi/epdf/10.1118/1.598248
 
     # Relative is a local gamma analysis
     if setgamma == 'Relative':
