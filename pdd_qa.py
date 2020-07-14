@@ -18,7 +18,7 @@ def main():
 
     qadir = eg.diropenbox(title='Please select folder containing pdd data')
 
-    if not dir:
+    if not qadir:
         eg.msgbox('Please re-run the code and select a folder containing the '
                   'data to be analysed', title='Folder Selection Error')
         raise SystemExit

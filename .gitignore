@@ -1,4 +1,5 @@
 __pycache__/
+env/
 *.py[cod]
 *$py.class
 # C extensions
