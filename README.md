@@ -91,7 +91,7 @@ python pdd_qa.py
 ## Contribute
 
 Pull requests are welcome.  
-For major changes, please open a ticket first to discuss desired changes:  [[repo-name]/issues](http://github.com/UCLHP/pdd-analysis/issues)
+For major changes, please open a ticket first to discuss desired changes:  [pdd-analysis/issues](http://github.com/UCLHP/pdd-analysis/issues)
 
 If making changes, please check all tests and add if required.
 
