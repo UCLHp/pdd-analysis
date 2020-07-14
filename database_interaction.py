@@ -62,7 +62,8 @@ def select_from_list(message, input_list, column=None):
 def props_table_from_db(DATABASE_DIR, ROUNDDATA, gantry=None, *, pswrd=False):
     '''
     Return a pandas dataframe containing all the reference data properties
-    stored in the access database
+    stored in the access database. If no gantry selected, tps data table will
+    be returned
     '''
     conn, cursor = db_connect(DATABASE_DIR, pswrd=pswrd)
 
