@@ -2,6 +2,7 @@ import numpy as np
 import datetime
 import os
 import easygui as eg
+import pandas as pd
 
 # NIST reference data for the Distal 80% for energies between 70MeV and 250MeV
 # https://physics.nist.gov/cgi-bin/Star/ap_table.pl
@@ -256,3 +257,68 @@ def pdd_gamma(test_data, ref_data, setgamma, crit):
             gammas.append(min(np.sqrt(dose_div_crit**2 + depth_div_crit**2)))
 
     return (gammas)
+
+
+def dict_to_df(data_dictionary, ROUNDDATA):
+    '''
+    Convert a dictionary of pdd data into a pandas dataframe that can easily be
+    written to an access database. the dataframe contains the properties of
+    the bragg peaks to be tracked over time
+    '''
+    ref_props = []
+    # key should represent the energy of the bragg peak
+    for key in sorted(data_dictionary.keys()):
+        metrics = PeakProperties(data_dictionary[key].data, key)
+        ref_props.append([key, round(metrics.Prox80, ROUNDDATA),
+                          round(metrics.Prox90, ROUNDDATA),
+                          round(metrics.Dist90, ROUNDDATA),
+                          round(metrics.Dist80, ROUNDDATA),
+                          round(metrics.Dist20, ROUNDDATA),
+                          round(metrics.Dist10, ROUNDDATA),
+                          round(metrics.FallOff, ROUNDDATA),
+                          round(metrics.HaloRat, ROUNDDATA),
+                          round(metrics.PTPR, ROUNDDATA)
+                          ]
+                         )
+    return pd.DataFrame(ref_props,
+                        columns=['energy', 'prox 80', 'prox 90',
+                                 'dist 90', 'dist 80', 'dist 20',
+                                 'dist 10', 'fall off',
+                                 'halo ratio', 'ptpr'
+                                 ]
+                        )
+
+
+def check_dataframes(DF1, DF2):
+    '''
+    Compares two dataframes against each other. First the shape is compared to
+    ensure all data is there to be compared, then np.allclose is used to flag
+    any item by item discrepancies of larger than 0.001 - due to float rounding
+    issues
+    '''
+    if DF1.shape != DF2.shape:
+        print(DF1.shape, DF2.shape)
+        eg.msgbox(f'Discrepancy between {DF1.name} and {DF2.name}\n'
+                  'Data sizes do not match \n'
+                  'Code will terminate',
+                  'Reference Data Error')
+        raise SystemExit
+
+    if not np.allclose(DF1, DF2, atol=0.001):
+        eg.msgbox(f'Discrepancy in data between {DF1.name} and {DF2.name}\n'
+                  'Code will terminate\n'
+                  'Please check the values printed in the terminal',
+                  'Reference Data Error')
+        print(f'{DF1.name} Values\n')
+        print(DF1)
+        print(f'{DF2.name} Values\n')
+        print(DF2)
+        print("Difference \n")
+        Difference = DF1 - DF2
+        Difference['energy'] = DF1['energy']
+        print(Difference)
+        input('Press Enter To Close Window')
+        raise SystemExit
+    # Pass if dataframes are the same
+    else:
+        pass
