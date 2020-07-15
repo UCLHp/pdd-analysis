@@ -3,28 +3,26 @@ import easygui as eg
 import pandas as pd
 
 
-def db_connect(DATABASE_DIR, *, pswrd=False):
+def db_connect(DATABASE_DIR, *, pswrd=''):
     '''
     Function to connect to connect to the access database at location defined
     by the DATABASE_DIR input. Connection will fail if password is required
     but not supplied
     '''
-    if pswrd:
-        conn = pypyodbc.connect(
-                'Driver={Microsoft Access Driver (*.mdb, *.accdb)};'
-                'DBQ=' + DATABASE_DIR + ';'
-                f'PWD={pswrd}'
-                )
-    else:
-        conn = pypyodbc.connect(
-                'Driver={Microsoft Access Driver (*.mdb, *.accdb)};'
-                'DBQ=' + DATABASE_DIR + ';'
-                )
+
+    if pswrd != '':
+        pswrd = f'PWD={pswrd}'
+
+    conn = pypyodbc.connect(
+            'Driver={Microsoft Access Driver (*.mdb, *.accdb)};'
+            'DBQ=' + DATABASE_DIR + ';'
+            + pswrd
+            )
     cursor = conn.cursor()
     return conn, cursor
 
 
-def db_fetch(DATABASE_DIR, db_table, *, pswrd=False, column=None):
+def db_fetch(DATABASE_DIR, db_table, *, pswrd='', column=None):
     '''
     A function to pull a table of data from a database table and output as a
     list. If column set to integer, selects that column from the table only
