@@ -4,6 +4,11 @@ from urllib.request import urlopen, URLError
 URL = "https://github.com/UCLHp/pdd-analysis"
 MASTER_HASH = "64ea656a7c35c61c05d8d2597992a4317443f9f8"
 
+# MASTER_HASH should be updated for each release of a new executable.
+# If this is not updated after a further commit to the master branch
+# a warning will be flagged to the user.
+
+
 
 def get_last_master_commit(repo_url):
     """Return hash key of latest commit on master branch
@@ -19,6 +24,7 @@ def get_last_master_commit(repo_url):
             commit = commit_href.split("/")[-1]
             return commit
 
+
 def internet_on():
     '''Confirms if user can access the internet'''
 
@@ -28,9 +34,6 @@ def internet_on():
     except URLError as err: pass
     return False
 
-# selfhash should be updated for each release of a new executable
-# if this is not updated after a further commit to the master branch
-# a warning will be flagged to the user.
 
 def check_version():
     print('Checking latest version release...\n')
