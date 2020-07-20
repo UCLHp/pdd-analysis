@@ -1,6 +1,10 @@
 import requests
 from urllib.request import urlopen, URLError
 
+URL = "https://github.com/UCLHp/pdd-analysis"
+MASTER_HASH = "64ea656a7c35c61c05d8d2597992a4317443f9f8"
+
+
 def get_last_master_commit(repo_url):
     """Return hash key of latest commit on master branch
     of given github repository"""
@@ -19,7 +23,7 @@ def internet_on():
     '''Confirms if user can access the internet'''
 
     try:
-        response=urlopen('http://github.com/UCLHp/Spot_Analysis',timeout=20)
+        response=urlopen(URL,timeout=20)
         return True
     except URLError as err: pass
     return False
@@ -31,13 +35,11 @@ def internet_on():
 def check_version():
     print('Checking latest version release...\n')
 
-    selfhash = '744921a011180d35c18d8bfdcae53c649eea4653'
-
     if internet_on():
         print('Internet connection established\n')
-        repo = 'http://github.com/UCLHp/Spot_Analysis'
+        repo = URL
         githash = get_last_master_commit(repo)
-        if not githash == selfhash:
+        if not githash == MASTER_HASH:
             print('VERSION NOT CONFIRMED')
             print('Please check latest version on GitHub')
             input('Press enter to continue')
