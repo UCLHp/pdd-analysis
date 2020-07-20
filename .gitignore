@@ -1,2 +1,9 @@
-
+__pycache__/
+env/
+*.py[cod]
+*$py.class
+# C extensions
+*.so
+*.pyc
+test/__pycache__
 \test.py
