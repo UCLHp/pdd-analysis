@@ -1,10 +1,11 @@
 import easygui as eg
 import os
-from pdd_module import *
 from datetime import date
 import pypyodbc
 import pandas as pd
 import test.test_version
+import pdd_module as pdd
+import database_interaction as di
 
 
 def main():
@@ -15,97 +16,59 @@ def main():
     # SELECT DATA AND LOAD REFERENCE DIRECTORIES
     ###########################################################################
 
-    dir = eg.diropenbox(title='Please select folder containing pdd data')
+    qadir = eg.diropenbox(title='Please select folder containing pdd data')
 
-    if not dir:
+    if not qadir:
         eg.msgbox('Please re-run the code and select a folder containing the '
                   'data to be analysed', title='Folder Selection Error')
         raise SystemExit
 
-    database_dir = ('\\\\krypton\\rtp-share$\\protons\\Work in Progress'
+    DATABASE_DIR = ('\\\\krypton\\rtp-share$\\protons\\Work in Progress'
                     '\\Christian\\Database\\Proton\\Test FE - CB.accdb')
-    refdata_dir = ('\\\\krypton\\rtp-share$\\protons\\Work in Progress'
+    REFDATA_DIR = ('\\\\krypton\\rtp-share$\\protons\\Work in Progress'
                    '\\Christian\\Python\\PDD Analysis\\Reference Tank Data')
-    current_date = date.today()  # For the record later
-    rounddata = 3    # For rounding so sig figs match between qs and db
+    CURRENT_DATE = date.today()  # For the record later
+    ROUNDDATA = 3    # For rounding so sig figs match between qs and db
 
     ###########################################################################
     # CONNECT TO DB AND SELECT USER DEFINED VARIABLES (GANTRY ETC.)
     ###########################################################################
 
-    conn = pypyodbc.connect(
-            r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};'
-            r'DBQ=' + database_dir + ';'
-            )
-    cursor = conn.cursor()
-
     # Select Operator
-    cursor.execute('select * from [Operators]')
-    operators = [row[2] for row in cursor.fetchall()]
-    operator = eg.choicebox('Who performed the measurements?',
-                            'Operator',
-                            operators)
-    if not operator:
-        eg.msgbox('Please re-run the code and select an Operator')
-        raise SystemExit
+    operators = di.db_fetch(DATABASE_DIR, 'Operators')
+    operator = di.select_from_list('Select User', operators, column=2)
     print(f'Operator = {operator}\n')
 
     # Select Gantry
-    cursor.execute('select * from [MachinesQuery]')
-    machines = [row[0] for row in cursor.fetchall()]
-    gantry = eg.choicebox('Which room were the measurements performed in?',
-                          'Gantry',
-                          machines)
-    if not gantry:
-        eg.msgbox('Please re-run the code and select a room')
-        raise SystemExit
+    machines = di.db_fetch(DATABASE_DIR, 'MachinesQuery')
+    gantry = di.select_from_list('Select Gantry', machines, column=0)
     print(f'Gantry = {gantry}\n')
 
-    # Select Measurement Type
-    measurement_type = eg.choicebox('Is this a PDD or MLIC measurement?',
-                                    'Measurement Type',
-                                    ['PDD', 'MLIC'])
-    if not measurement_type:
-        eg.msgbox('Please re-run the code and select a Measurement Type')
-        raise SystemExit
-    print(f'Measurement Type = {measurement_type}\n')
+    # Select measurement device
+    devices = di.db_fetch(DATABASE_DIR, 'PDD Equipment Query')
+    device = di.select_from_list('Select Chamber/Device', devices, column=1)
+    print(f'Chamber/Device Used = {device}\n')
 
-    if measurement_type == 'PDD':
-        cursor.execute('select * from [PDD Equipment Query]')
-        # Using list comprehension requires zip function and is less readable
-        devices = []
-        categories = []
-        for row in cursor.fetchall():
-            devices.append(row[1])
-            categories.append(row[2])
+    measurement_type = [item[2] for item in devices if item[1] == device][0]
 
-        device = eg.choicebox('Which Chamber/Device was used?',
-                              'Device',
-                              devices)
-        if not device:
-            eg.msgbox('Please re-run the code and select a device')
-            raise SystemExit
-        print(f'Chamber/Device Used = {device}\n')
-    elif measurement_type == 'MLIC':
-        eg.msgbox('MLIC code not complete as awaiting database module and '
-                  'queries to be written')
-        raise SystemExit
+    # giraffe files do not contain the energy within the file - the user must
+    # input manually. The string is used for the sense check at the end
+    ga_string = ''
+    if measurement_type == 'Chamber (cal)':
+        GA = eg.enterbox('Enter Measurement Gantry Angle',
+                         'Gantry Angle during acquisition',
+                         ('270')
+                         )
+        ga_string = '\nGantry Angle = ' + str(GA)
+        try:
+            float(GA)
 
-    # Run a check to make sure the device type matches the data type
-    # i.e. PDD Chamber matches '.mcc' files and MLIC matches '.csv' files
-    category = categories[devices.index(device)]
-    if category == 'MLIC':
-        if not os.listdir(dir)[0].endswith('.csv'):
-            eg.msgbox('Device does not match filetype. '
-                      'Please re run the code and select the correct '
-                      'device/folder', 'Device/File Type Error')
+        except (ValueError, TypeError) as e:
+            eg.msgbox('Please re-run the program and enter an appropriate '
+                      'Gantry Angle', title='Gantry Angle Value Error')
             raise SystemExit
-    if category == 'PDD Chamber':
-        if not os.listdir(dir)[0].endswith('.mcc'):
-            eg.msgbox('Device does not match filetype. '
-                      'Please re run the code and select the correct '
-                      'device/folder', 'Device/File Type Error')
-            raise SystemExit
+        # [0] is automatically generated by easygui. Replecated for aesthetics
+        print('[0]' + ga_string + '\n')
 
     # Enter the WET offset through a user entry box
     offset = eg.enterbox("Enter WET Offset (mm)", "WET Offset", ('0'))
@@ -120,6 +83,7 @@ def main():
         eg.msgbox('Please re-run the program and enter an appropriate '
                   'value for the WET offset', title='WET Value Error')
         raise SystemExit
+    # [0] is automatically generated by easygui. Replecated for aesthetics
     print(f'[0]\nWET = {str(offset)} \n')
 
     print('\nRunning the quality system data check...')
@@ -129,133 +93,45 @@ def main():
     ###########################################################################
 
     # Gantry specific reference data from DataBase
-    ref_props_gant_db = pd.read_sql('select  [Energy], [Prox 80], '
-                                    '[Prox 90], [Dist 90], [Dist 80], '
-                                    '[Dist 20], [Dist 10], [Fall Off], '
-                                    '[Halo Ratio], [PTPR] '
-                                    'from [PDD Reference Data Current Query] '
-                                    'where [Gantry]=\'' + str(gantry) + '\'',
-                                    conn)
+    ref_props_gant_db = di.props_table_from_db(DATABASE_DIR, ROUNDDATA, gantry)
+    ref_props_gant_db.name = 'ref_props_gant_db'
 
-    ref_props_gant_db.sort_values(by=['energy'], inplace=True)
-    ref_props_gant_db = ref_props_gant_db.reset_index(drop=True)
-    # Also need to round the dataframe to a set value to match any calculated
-    # fields (e.g. fall off)
-    ref_props_gant_db = ref_props_gant_db.round(rounddata)
-
-    # TPS Reference Data in DataBase
-    ref_props_tps_db = pd.read_sql('select  [Energy], [Prox 80], '
-                                   '[Prox 90], [Dist 90], [Dist 80], '
-                                   '[Dist 20], [Dist 10], [Fall Off], '
-                                   '[Halo Ratio], [PTPR] from [PDD '
-                                   'Reference Data Current Plan Ref Query]',
-                                   conn
-                                   )
-    ref_props_tps_db.sort_values(by=['energy'], inplace=True)
-    ref_props_tps_db = ref_props_tps_db.reset_index(drop=True)
-    ref_props_tps_db = ref_props_tps_db.round(rounddata)
+    # TPS reference data from DataBase
+    ref_props_tps_db = di.props_table_from_db(DATABASE_DIR, ROUNDDATA)
+    ref_props_tps_db.name = 'ref_props_tps_db'
 
     # Gantry specific reference data from QS
-    ref_data_gant_qs = directory_to_dictionary(os.path.join(refdata_dir, gantry))
-    ref_props_gant_qs = []
-    for key in sorted(ref_data_gant_qs.keys()):
-        metrics = PeakProperties(ref_data_gant_qs[key], key)
-        ref_props_gant_qs.append([key, round(metrics.Prox80, rounddata),
-                                  round(metrics.Prox90, rounddata),
-                                  round(metrics.Dist90, rounddata),
-                                  round(metrics.Dist80, rounddata),
-                                  round(metrics.Dist20, rounddata),
-                                  round(metrics.Dist10, rounddata),
-                                  round(metrics.FallOff, rounddata),
-                                  round(metrics.HaloRat, rounddata),
-                                  round(metrics.PTPR, rounddata)
-                                  ])
-    ref_props_gant_qs = pd.DataFrame(ref_props_gant_qs,
-                                     columns=['energy', 'prox 80', 'prox 90',
-                                              'dist 90', 'dist 80', 'dist 20',
-                                              'dist 10', 'fall off',
-                                              'halo ratio', 'ptpr'
-                                              ]
-                                     )
+    ref_data_gant_qs = pdd.directory_to_dictionary(os.path.join(REFDATA_DIR,
+                                                                gantry))
+    ref_props_gant_qs = pdd.dict_to_df(ref_data_gant_qs, ROUNDDATA)
+    ref_props_gant_qs.name = 'ref_props_gant_qs'
 
     # TPS reference data from QS
-    ref_data_tps_qs = directory_to_dictionary(os.path.join(refdata_dir, gantry))
-    ref_props_tps_qs = []
-    for key in sorted(ref_data_tps_qs.keys()):
-        metrics = PeakProperties(ref_data_tps_qs[key], key)
-        ref_props_tps_qs.append([key, round(metrics.Prox80, rounddata),
-                                 round(metrics.Prox90, rounddata),
-                                 round(metrics.Dist90, rounddata),
-                                 round(metrics.Dist80, rounddata),
-                                 round(metrics.Dist20, rounddata),
-                                 round(metrics.Dist10, rounddata),
-                                 round(metrics.FallOff, rounddata),
-                                 round(metrics.HaloRat, rounddata),
-                                 round(metrics.PTPR, rounddata)
-                                 ]
-                                )
-    ref_props_tps_qs = pd.DataFrame(ref_props_tps_qs,
-                                    columns=['energy', 'prox 80', 'prox 90',
-                                             'dist 90', 'dist 80', 'dist 20',
-                                             'dist 10', 'fall off',
-                                             'halo ratio', 'ptpr'
-                                             ]
-                                    )
+    ref_data_tps_qs = pdd.directory_to_dictionary(os.path.join(REFDATA_DIR,
+                                                               'Gantry 1'))
+    ref_props_tps_qs = pdd.dict_to_df(ref_data_tps_qs, ROUNDDATA)
+    ref_props_tps_qs.name = 'ref_props_tps_qs'
 
-    if not ref_props_gant_db.shape == ref_props_gant_qs.shape:
-        eg.msgbox('Discrepancy in gantry reference data between QS and DB \n'
-                  'Data sizes do not match \n'
-                  'Code will terminate',
-                  'Reference Data Error')
-        raise SystemExit
+    pdd.check_dataframes(ref_props_gant_db, ref_props_gant_qs)
 
-    if not ref_props_tps_db.shape == ref_props_tps_qs.shape:
-        eg.msgbox('Discrepancy in tps reference data between QS and DB \n'
-                  'Data sizes do not match \n'
-                  'Code will terminate',
-                  'Reference Data Error')
-        raise SystemExit
-
-    if not np.allclose(ref_props_gant_qs, ref_props_gant_db, atol=0.001):
-        eg.msgbox('Discrepancy in gantry specific reference data between QS '
-                  'and DB\nPlease check the values printed in the terminal',
-                  'Reference Data Error')
-        print("Data Base Values \n")
-        print(ref_props_gant_db)
-        print("Quality System Values \n")
-        print(ref_props_gant_qs)
-        print("Difference \n")
-        Difference = ref_props_gant_db - ref_props_gant_qs
-        Difference['energy'] = ref_props_gant_qs['energy']
-        print(Difference)
-        input('Press Enter To Close Window')
-        raise SystemExit
-
-    if not np.allclose(ref_props_tps_qs, ref_props_tps_db, atol=0.001):
-        eg.msgbox('Discrepancy in tps reference data between QS and DB'
-                  '\nPlease check the values printed in the terminal',
-                  'Reference Data Error')
-        print("Data Base Values \n")
-        print(ref_props_tps_db)
-        print("Quality System Values \n")
-        print(ref_props_tps_qs)
-        print("Difference \n")
-        Difference = ref_props_tps_db - ref_props_tps_qs
-        Difference['energy'] = ref_props_tps_qs['energy']
-        print(Difference)
-        input('Press Enter To Close Window')
-        raise SystemExit
+    pdd.check_dataframes(ref_props_tps_db, ref_props_tps_qs)
 
     print('\nQuality System Data Matches Database')
+
+    ###########################################################################
+    # WRITE RESULTS TO DATABASE
+    ###########################################################################
 
     # Check that the user has slected the correct opperator, gantry, etc.
     # This data will be written straight into the database and, given
     # the amount of it, it will be annoying/time conssuming to correct this
     # once it's already in the database.
+
     if not eg.ynbox(msg='Please confirm that the following information is '
                     'correct... \n\nOperator = ' + operator + '\nGantry = ' +
                     gantry + '\nMeasurement Type = ' + measurement_type +
-                    '\nChamber/Device = ' + device + '\nWET = ' + str(offset),
+                    '\nChamber/Device = ' + device + '\nWET = ' + str(offset)
+                    + ga_string,
                     title='User Input Confirmation'):
         eg.msgbox('User inputs not confirmed. Please re-run', 'Input Error')
 
@@ -263,79 +139,58 @@ def main():
 
     print('\n\nRunning main data analysis...')
 
-    ###########################################################################
-    # MEASUEMENT OF PDD CURVE
-    ###########################################################################
+    measured_data = pdd.directory_to_dictionary(qadir)
 
-    measured_data = directory_to_dictionary(dir)
+    conn, cursor = di.db_connect(DATABASE_DIR)
 
-    if measurement_type == 'MLIC':
-        GA = eg.enterbox('Enter Measurement Gantry Angle',
-                         'Gantry Angle during acquisition',
-                         ('270')
-                         )
-        try:
-            float(GA)
-        except (ValueError, TypeError) as e:
-            eg.msgbox('Please re-run the program and enter an appropriate value '
-                      'for the Gantry Angle', title='Gantry Angle Value Error')
-            raise SystemExit
-
-    file_date = {}
-    file_GA = {}
     for key in sorted(measured_data.keys()):
-        metrics = PeakProperties(ref_data_tps_qs[key], key)
-        location = os.path.join(dir, str(int(key)))+'.mcc'
-        if measurement_type == 'PDD':
-            # temp1&2 are unrequired outputs from the readmcc function
-            temp1, temp2, file_date[key], file_GA[key] = readmcc(location)
-        elif measurement_type == 'MLIC':
-            # temp1 is an unrequired output from the readgiraffe function
-            temp1, file_date[key] = readgiraffe(location)
-            file_GA[key] = GA
-        else:
-            eg.msgbox('Only measurement types PDD or MLIC will work'
-                      'Please re-run the code', title='Measurement type error')
-            raise SystemExit
+        metrics = pdd.PeakProperties(measured_data[key].data, key)
+        # gantry_angle is None for MLIC files, so here we assign the user input
+        if measurement_type == 'Chamber (cal)':
+            measured_data[key].gantry_angle = GA
 
-        db = [file_date[key], current_date, operator, device, gantry,
-              file_GA[key], int(key), round(metrics.Prox80, rounddata),
-              round(metrics.Prox90, rounddata), round(metrics.Dist90, rounddata),
-              round(metrics.Dist80, rounddata), round(metrics.Dist20, rounddata),
-              round(metrics.Dist10, rounddata), round(metrics.HaloRat, rounddata),
-              round(metrics.PTPR, rounddata),
+        db = [measured_data[key].date, CURRENT_DATE, operator, device, gantry,
+              measured_data[key].gantry_angle, int(key),
+              round(metrics.Prox80, ROUNDDATA),
+              round(metrics.Prox90, ROUNDDATA),
+              round(metrics.Dist90, ROUNDDATA),
+              round(metrics.Dist80, ROUNDDATA),
+              round(metrics.Dist20, ROUNDDATA),
+              round(metrics.Dist10, ROUNDDATA),
+              round(metrics.HaloRat, ROUNDDATA),
+              round(metrics.PTPR, ROUNDDATA),
               round(ref_props_gant_qs.query(f'energy=={key}')['prox 80'].item()
-              - metrics.Prox80, rounddata),
+              - metrics.Prox80, ROUNDDATA),
               round(ref_props_gant_qs.query(f'energy=={key}')['prox 90'].item()
-              - metrics.Prox90, rounddata),
+              - metrics.Prox90, ROUNDDATA),
               round(ref_props_gant_qs.query(f'energy=={key}')['dist 90'].item()
-              - metrics.Dist90, rounddata),
+              - metrics.Dist90, ROUNDDATA),
               round(ref_props_gant_qs.query(f'energy=={key}')['dist 80'].item()
-              - metrics.Dist80, rounddata),
+              - metrics.Dist80, ROUNDDATA),
               round(ref_props_gant_qs.query(f'energy=={key}')['dist 20'].item()
-              - metrics.Dist20, rounddata),
+              - metrics.Dist20, ROUNDDATA),
               round(ref_props_gant_qs.query(f'energy=={key}')['dist 10'].item()
-              - metrics.Dist10, rounddata),
+              - metrics.Dist10, ROUNDDATA),
               round(ref_props_gant_qs.query(f'energy=={key}')['halo ratio'].item()
-              - metrics.HaloRat, rounddata),
+              - metrics.HaloRat, ROUNDDATA),
               round(ref_props_gant_qs.query(f'energy=={key}')['ptpr'].item()
-              - metrics.PTPR, rounddata),
+              - metrics.PTPR, ROUNDDATA),
               round(ref_props_tps_qs.query(f'energy=={key}')['prox 80'].item()
-              - metrics.Prox80, rounddata),
+              - metrics.Prox80, ROUNDDATA),
               round(ref_props_tps_qs.query(f'energy=={key}')['prox 90'].item()
-              - metrics.Prox90, rounddata),
+              - metrics.Prox90, ROUNDDATA),
               round(ref_props_tps_qs.query(f'energy=={key}')['dist 90'].item()
-              - metrics.Dist90, rounddata),
+              - metrics.Dist90, ROUNDDATA),
               round(ref_props_tps_qs.query(f'energy=={key}')['dist 80'].item()
-              - metrics.Dist80, rounddata),
+              - metrics.Dist80, ROUNDDATA),
               round(ref_props_tps_qs.query(f'energy=={key}')['dist 20'].item()
-              - metrics.Dist20, rounddata),
+              - metrics.Dist20, ROUNDDATA),
               round(ref_props_tps_qs.query(f'energy=={key}')['dist 10'].item()
-              - metrics.Dist10, rounddata),
+              - metrics.Dist10, ROUNDDATA),
               round(ref_props_tps_qs.query(f'energy=={key}')['halo ratio'].item()
-              - metrics.HaloRat, rounddata),
+              - metrics.HaloRat, ROUNDDATA),
               round(ref_props_tps_qs.query(f'energy=={key}')['ptpr'].item()
-              - metrics.PTPR, rounddata)
+              - metrics.PTPR, ROUNDDATA)
               ]
 
         sql = ('INSERT INTO [PDD Results] ([ADate], [Record Date], '
@@ -361,12 +216,11 @@ def main():
                       title='Data duplication')
             raise SystemExit
 
-
     conn.commit()
 
     print('\nCompleted :)\n')
 
-    eg.msgbox('Code has finished running. Please review results in QA Database',
+    eg.msgbox('Code finished running. Please review results in QA Database',
               title='All Energies Completed')
 
 
