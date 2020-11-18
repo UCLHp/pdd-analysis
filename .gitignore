@@ -7,3 +7,5 @@ env/
 *.pyc
 test/__pycache__
 \test.py
+
+pddw2cad/
