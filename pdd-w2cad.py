@@ -36,11 +36,48 @@ import xlrd
 import pandas as pd
 
 
-file = fileopenbox(title='select pdd commissioning spreadsheet', msg=None,
-                      default='*', filetypes='*.xlsx')
+###  Try accessing the dataMod and pbtMod packages for most up to date
+  #  versions of these software, otherwise use internal versions that may be
+  #  outdated but are at least internally consistent.
+try:
+    from sys import path as sysPath
+    from os import path as osPath
+    sysPath.append(osPath.join(osPath.expanduser('~'),'coding','packages'))
+    from dataMod.dataClass import W2CADdata
+    from pbtMod import w2cad
 
-print(file)
+else:
+    ###  A W2CAD data class
+      #  W2CAD is a Varian data format in a text file
+      #  has a very specific structure
+      #  Header details what is contained in the file
+      #  parameters indicates what each entry contains
+      #  for each line, is an x, y, z, and value (often dose)
 
-df = pd.read_excel(file) #place "r" before the path string to address special character, such as '\'. Don't forget to put the file name at the end of the path + '.xlsx'
+    class W2CADdata:
+        def __init__(self):
+            self.type = ''
+            self.head = []
+            self.params = []
+            self.x = []
+            self.y = []
+            self.z = []
+            self.d = []
 
-print (df)
+
+
+# file = fileopenbox(title='select pdd commissioning spreadsheet', msg=None,
+#                       default='*', filetypes='*.xlsx')
+file = "C:\\Users\\andrew\\coding\\pdd-analysis\\data\\PDD_results.xlsx"
+
+# print(file)
+
+xls = pd.ExcelFile(file)
+# print(xls.sheet_names)
+
+df = pd.read_excel(xls, xls.sheet_names[0])
+
+# print(df)
+
+depth = df[df.columns[0]].to_list()
+dose = df[df.columns[1]].to_list()
