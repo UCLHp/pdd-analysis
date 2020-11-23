@@ -46,13 +46,8 @@ try:
     from dataMod.dataClass import W2CADdata
     from pbtMod import w2cad
 
-else:
-    ###  A W2CAD data class
-      #  W2CAD is a Varian data format in a text file
-      #  has a very specific structure
-      #  Header details what is contained in the file
-      #  parameters indicates what each entry contains
-      #  for each line, is an x, y, z, and value (often dose)
+except:
+    ###  copied from pbtMod/w2cadFiles on YYYY-MM-DD
 
     class W2CADdata:
         def __init__(self):
@@ -68,9 +63,14 @@ else:
 
 # file = fileopenbox(title='select pdd commissioning spreadsheet', msg=None,
 #                       default='*', filetypes='*.xlsx')
-file = "C:\\Users\\andrew\\coding\\pdd-analysis\\data\\PDD_results.xlsx"
+# file = "C:\\Users\\andrew\\coding\\pdd-analysis\\data\\PDD_results.xlsx"
+file = "C:\\Users\\agoslin2\\coding\\pdd-analysis\\data\\PDD_results.xlsx"
 
-# print(file)
+if not file:
+    print('\nNo input file provided')
+    raise SystemExit()
+
+print(file)
 
 xls = pd.ExcelFile(file)
 # print(xls.sheet_names)

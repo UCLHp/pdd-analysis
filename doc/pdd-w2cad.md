@@ -56,7 +56,7 @@ Operating within a virtual environment using venv (Python 3.7.0)
 
 ```console
 python -m venv envpddw2cad
-w2cad/Scripts/activate.bat
+envpddw2cad/Scripts/activate.bat
 pip install -r requirements.txt
 ```
 
