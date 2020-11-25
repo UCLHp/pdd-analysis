@@ -31,53 +31,76 @@
 
 
 
-from easygui import fileopenbox
+from os.path import join
+
 import xlrd
+import datetime
 import pandas as pd
-
-
-###  Try accessing the dataMod and pbtMod packages for most up to date
-  #  versions of these software, otherwise use internal versions that may be
-  #  outdated but are at least internally consistent.
-try:
-    from sys import path as sysPath
-    from os import path as osPath
-    sysPath.append(osPath.join(osPath.expanduser('~'),'coding','packages'))
-    from dataMod.dataClass import W2CADdata
-    from pbtMod import w2cad
-
-except:
-    ###  copied from pbtMod/w2cadFiles on YYYY-MM-DD
-
-    class W2CADdata:
-        def __init__(self):
-            self.type = ''
-            self.head = []
-            self.params = []
-            self.x = []
-            self.y = []
-            self.z = []
-            self.d = []
+from easygui import fileopenbox, diropenbox
 
 
 
-# file = fileopenbox(title='select pdd commissioning spreadsheet', msg=None,
-#                       default='*', filetypes='*.xlsx')
-# file = "C:\\Users\\andrew\\coding\\pdd-analysis\\data\\PDD_results.xlsx"
-file = "C:\\Users\\agoslin2\\coding\\pdd-analysis\\data\\PDD_results.xlsx"
+#  input spreadsheet with all the IDD data
+file = fileopenbox(title='select pdd commissioning spreadsheet', msg=None,
+                      default='*', filetypes='*.xlsx')
+
+#  directory to save the output .w2cad files
+oDir = diropenbox(title='Select where to save the .w2cad file', \
+                  msg=None, default='*')
 
 if not file:
     print('\nNo input file provided')
     raise SystemExit()
 
-print(file)
-
 xls = pd.ExcelFile(file)
-# print(xls.sheet_names)
 
-df = pd.read_excel(xls, xls.sheet_names[0])
+###  copied from pbtMod/w2cadFiles on 2020-11-24
+class W2CADdata:
+    def __init__(self):
+        self.type = ''
+        self.head = []
+        self.params = []
+        self.x = []
+        self.y = []
+        self.z = []
+        self.d = []
 
-# print(df)
+for st in range(len(xls.sheet_names)):
 
-depth = df[df.columns[0]].to_list()
-dose = df[df.columns[1]].to_list()
+    df = pd.read_excel(xls, xls.sheet_names[st])
+
+    data = [W2CADdata()]  #  list so can have option for many entries
+
+    data[0].type = 'MeasuredDepthDose'
+    data[0].head.append('created from spreadsheet data')
+    data[0].head.append('spreadsheet created by programme commissioning_pdds.py')
+    data[0].params.extend([' VERSION 02', \
+                           ' DATE '+str(datetime.datetime.now().strftime('%Y-%m-%d')), \
+                           ' TYPE '+str(data[0].type), \
+                           ' AXIS Z'
+                            ])
+    data[0].x = [0.0 for _ in range(len(df[df.columns[0]].to_list()))]
+    data[0].y = [0.0 for _ in range(len(df[df.columns[0]].to_list()))]
+    data[0].z = df[df.columns[0]].to_list()  #  depths
+    data[0].d = df[df.columns[1]].to_list()  #  doses
+
+    ###  writing function a subset of pbtMod/w2cadFiles/W2CADwrite.py
+    oFile = join( oDir, str(xls.sheet_names[st])+'MeV.w2cad' )
+
+    with open(oFile, 'w') as of:
+        of.write('$ NUMS {:03d}\n'.format(len(data)))
+        of.write('#\n# created by w2cadWrite.py\n# creation date: ' \
+                  + str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')) \
+                  + '\n#\n')
+
+        #  for each entry in data, create an entry in the file
+        for dt in data:
+            of.write('$ STOM\n')
+            for hd in dt.head:
+                of.write('# '+str(hd)+'\n')
+            for pm in dt.params:
+                of.write('% '+str(pm)+'\n')
+            for _ in range(len(dt.d)):
+                of.write('< {x:+12.5f} {y:+12.5f} {z:+12.5f} {d:+12.5f} >\n'.format(x=dt.x[_], y=dt.y[_], z=dt.z[_], d=dt.d[_]))
+            of.write('$ ENOM\n')
+        of.write('$ ENOF\n')

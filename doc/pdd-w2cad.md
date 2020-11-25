@@ -2,23 +2,23 @@
 
 ## Scope
 
-A few sentences outlining the intention of the overall project
-
-A list of intended outcomes/goals:
-
-- outcome 1
-- goal 2
-- measurable 3
+Convert the output of the PDD measurements and analysis into the `.w2cad` file format required by Eclipse for beam model creation.
 
 ## Plan design
 
-Breakdown of the project, with much more detail of each element to be included
+- Request the location of the PDD spreadsheet
+- read in the spreadsheet to a data frame
+- identify the number of sheets within the spreadsheet
+- for each sheet
 
-- include lists
-
-  - and even sub lists
+  - Read in the depth and dose data
+  - create a W2CADclass structure for the data
+  - add in the required `w2cad` headers and parameters
+  - write to a file location
 
 ## Elements
+
+Single element `pdd-w2cad.py` that performs full task.
 
 ### Dependency
 
@@ -26,27 +26,29 @@ Breakdown of the project, with much more detail of each element to be included
 xlrd            1.2.0
 ```
 
-### projectFileName.py
+### pdd-w2cad.py
 
-**functionNameOne**
+Use `easygui` to identify input file and locate output directory
 
-The details of functionNameOne
+Use `pandas` and `xlrd` to read in the excel file into a dataframe
 
-**functionNameTwo**
+Have baked in the `W2CADdata` class into the function from `pbtMod`
 
-The details of functionNameTwo
+Read the excel data into appropriate lists and then parse into the `W2CADdata` class including adding headers and parameters.
 
 ## To Develop
 
-Things to be added into the programme.
+Have not tested reading of `.w2cad` files into TPS so will have to confirm the formatting is correct.
+
+Have not generated any testing routines.
 
 ## Testing
 
-Any testing to be performed and/or files included to test the fucntions.
+None developed so far but in the To Develop list.
 
 ## Issues
 
-Things that are a problem that need to be updated and/or fixed.
+Nothing identified so far.
 
 # Appendix: DEV NOTES
 
