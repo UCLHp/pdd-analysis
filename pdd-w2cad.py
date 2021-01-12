@@ -65,7 +65,7 @@ class W2CADdata:
         self.z = []
         self.d = []
 
-for st in range(len(xls.sheet_names)):
+for st in range(1,len(xls.sheet_names)):
 
     df = pd.read_excel(xls, xls.sheet_names[st])
 

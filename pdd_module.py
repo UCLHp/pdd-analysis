@@ -102,6 +102,7 @@ class DepthDoseFile:
         # If norm=True data will be normalised to Dmax
         if norm:
             normalise(self.data)
+            print(max(self.data[1]))
 
 
 def directory_to_dictionary(dir):
@@ -221,7 +222,7 @@ def pdd_gamma(test_data, ref_data, setgamma, crit):
     deepest = ref_data[0][len(ref_data[0])-1]
     # Need more fine resolution in reference data so new data set created
     # With values linearly interpolated every 0.1mm
-    fine_ref_x = np.linspace(0, deepest, int((deepest*10)+1)  )
+    fine_ref_x = np.linspace(0, deepest, int((deepest*10)+1))
     fine_ref_x = np.concatenate((ref_data[0], fine_ref_x))
     fine_ref_x = sorted(fine_ref_x)
     fine_ref_y = np.interp(fine_ref_x, ref_data[0], ref_data[1])
