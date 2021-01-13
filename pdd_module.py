@@ -102,7 +102,6 @@ class DepthDoseFile:
         # If norm=True data will be normalised to Dmax
         if norm:
             normalise(self.data)
-            print(max(self.data[1]))
 
 
 def directory_to_dictionary(dir):
