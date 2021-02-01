@@ -89,7 +89,7 @@ def main():
                            + str(1+len(data[key].data[1])),
             'y2_axis': 0,
             'line': {'color': 'red', 'width': 1, },
-            'marker': {'type': 'none'},
+            'marker': {'type': 'automatic'},
         })
         chart.set_size({'width': 900, 'height': 650})
         chart.set_title({'name': "Measured PDD"})
