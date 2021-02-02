@@ -1,9 +1,8 @@
-import numpy as np
 import pdd_module as pdd
 import os
 import easygui as eg
 import xlsxwriter
-import test.test_version
+# import test.test_version
 
 
 '''
@@ -16,7 +15,7 @@ The script will write the results to an excel spreadsheet.
 
 def main():
     # test_version checks there haven't been changes to master branch on github
-    test.test_version.check_version()
+    # test.test_version.check_version()
 
     mcc_dir = eg.diropenbox(title='Please select mcc directory')
     if not mcc_dir:
@@ -35,7 +34,7 @@ def main():
         offset = float(offset)
     except (ValueError, TypeError) as e:
         eg.msgbox("Please re-run with an appropriate value for the WET offset",
-                  title="WET Value Error")
+                  title=f"WET {e}")
         raise SystemExit
 
     save_dir = eg.diropenbox(title='Please Select Save Location')
@@ -44,7 +43,9 @@ def main():
 
     # Create empty excel file to write results to
     workbook = xlsxwriter.Workbook(os.path.join(save_dir, 'Ref_results.xlsx'))
-
+    summary = workbook.add_worksheet('Summary')
+    summary.write(1, 1, 'Energy')
+    column_to_write = 2
     # Loop through each key (energy) in the dir, get the properties using
     # the PeakProperties class then write them to the excel file
 
@@ -73,6 +74,10 @@ def main():
         worksheet.write('E1', 'Value')
         worksheet.write_column('E2',
                                list(data_properties[key].__dict__.values()))
+
+        # Write properties to summary sheet - this step is repeated each loop
+        summary.write_column('B3', list(data_properties[key].__dict__.keys()))
+
         # Set column widths for aesthetics
         worksheet.set_column('A:A', 11.00)
         worksheet.set_column('B:B', 11.29)
@@ -95,6 +100,13 @@ def main():
         chart.set_title({'name': "Measured PDD"})
 
         worksheet.insert_chart('G2', chart)
+
+        # Write properties into summary sheet for easy reference
+        summary.write(1, column_to_write, key)
+        summary.write_column(2, column_to_write,
+                             list(data_properties[key].__dict__.values()))
+        column_to_write += 1
+
         # Track progress in the command line
         print(str(key) + ' Done')
 
