@@ -2,7 +2,7 @@ import pdd_module as pdd
 import os
 import easygui as eg
 import xlsxwriter
-import test.test_version
+# import test.test_version
 
 
 '''
@@ -15,7 +15,7 @@ The script will write the results to an excel spreadsheet.
 
 def main():
     # test_version checks there haven't been changes to master branch on github
-    test.test_version.check_version()
+    # test.test_version.check_version()
 
     mcc_dir = eg.diropenbox(title='Please select mcc directory')
     if not mcc_dir:
@@ -94,7 +94,7 @@ def main():
                            + str(1+len(data[key].data[1])),
             'y2_axis': 0,
             'line': {'color': 'red', 'width': 1, },
-            'marker': {'type': 'none'},
+            'marker': {'type': 'automatic'},
         })
         chart.set_size({'width': 900, 'height': 650})
         chart.set_title({'name': "Measured PDD"})

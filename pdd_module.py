@@ -111,7 +111,7 @@ def directory_to_dictionary(dir):
     keys that equate to the energy taken from the file name
     '''
     ref_data = {}
-    for file in os.listdir(dir):
+    for file in [_ for _ in os.listdir(dir) if _.endswith('.mcc')]:
         path = os.path.join(dir, file)
         try:
             name = float(os.path.splitext(file)[0])
