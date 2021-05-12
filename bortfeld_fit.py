@@ -97,7 +97,7 @@ def bortfeld_fit(data):
     params_best=Parameters()
     params_best.add("Phi0", value=result.params['Phi0'].value)
     params_best.add("R0", value=result.params['R0'].value, min=0)
-    params_best.add("sigma", value=result.params['R0'].value, min=0)
+    params_best.add("sigma", value=result.params['sigma'].value, min=0)
     params_best.add("epsilon", value=result.params['epsilon'].value, min=0)
 
     x_bortfeld_best = np.arange(0, int(max(x)+1), 0.0005).tolist()
