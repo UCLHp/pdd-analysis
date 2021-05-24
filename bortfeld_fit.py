@@ -34,9 +34,9 @@ def normalised_dose(x, Phi0, R0, sigma, epsilon):
 def only_fit_peak(x, y, R0_init, sigma_init):
     ''' Shorten the data to that within -15*sigma to +6*sigma of the peak
     '''
-    prox_pos = R0_init - 15*sigma_init
+    prox_pos = R0_init - 18*sigma_init
     prox_index = np.argmin(np.absolute(x - prox_pos))
-    dist_pos = R0_init + 6*sigma_init
+    dist_pos = R0_init + 8*sigma_init
     dist_index = np.argmin(np.absolute(x - dist_pos))
     y = y[prox_index:dist_index]
     x = x[prox_index:dist_index]
@@ -100,14 +100,17 @@ def bortfeld_fit(data):
     params_best.add("sigma", value=result.params['sigma'].value, min=0)
     params_best.add("epsilon", value=result.params['epsilon'].value, min=0)
 
-    x_bortfeld_best = np.arange(0, int(max(x)+1), 0.0005).tolist()
+    x_bortfeld_best = np.arange(0, int(max(x)+1), 0.01).tolist()
     y_bortfeld_best = model.eval(params_best, x=x_bortfeld_best)
-    x_bortfeld_best, y_bortfeld_best = only_fit_peak(x_bortfeld_best, y_bortfeld_best)
+    x_bortfeld_best, y_bortfeld_best = only_fit_peak(x_bortfeld_best, y_bortfeld_best, result.params['R0'].value, result.params['sigma'].value)
     y_bortfeld_best = [100*value/np.amax(y_bortfeld_best) for value in y_bortfeld_best]
 
     data = [x_bortfeld_best, y_bortfeld_best]
 
-    return data, fit_report
+    E0_best = math.pow(result.params['R0'].value/alpha, 1.0/p)
+    print(E0_best)
+
+    return data, fit_report, E0_best
 
 
 if __name__ == "__main__":

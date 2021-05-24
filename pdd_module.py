@@ -4,6 +4,8 @@ import os
 import easygui as eg
 import pandas as pd
 
+import bortfeld_fit as bf
+
 # NIST reference data for the Distal 80% for energies between 70MeV and 250MeV
 # https://physics.nist.gov/cgi-bin/Star/ap_table.pl
 NIST = np.asarray([(70, 40.75), (75, 46.11), (80, 51.76), (85, 57.69),
@@ -173,7 +175,7 @@ class PeakProperties:
     Bragg Peak. It requires depth dose data, the energy (for the NIST reference
     data) and where the 'plateau' is defined for a peak to plateau ratio.
     '''
-    def __init__(self, data, energy, plateau_depth=25):
+    def __init__(self, data, energy, plateau_depth=25, bortfeld_fit_bool=False):
         # Only uses NIST values if within the hardcoded range
         if energy < 70:
             NISTRange = "Out Of Range"
@@ -186,6 +188,11 @@ class PeakProperties:
         # calculation of the properties withour affecting the input data
         data = np.array(data, copy=True)
         normalise(data)
+
+        if bortfeld_fit_bool:
+            data, fit_report, E0_best = bf.bortfeld_fit(data)
+            self.fit_report = fit_report
+            self.E0_fit = E0_best
 
         self.NISTRange = NISTRange
         self.Prox80 = prox_depth_seeker(80, data)
