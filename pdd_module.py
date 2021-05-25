@@ -37,7 +37,13 @@ class DepthDoseFile:
     '''
     Class to create a depth dose object that contains the full depth dose data
     as well as the properties provided in files.
-    File must be either csv or mcc relating to MLIC or tank data respectively
+
+    File must be either csv or mcc relating to MLIC or tank data respectively.
+
+    If MLIC csv will output in format
+        self.data = [[depth, dose1], [depth, dose2]] (where [depth, dose] is a numpy array)
+    If tank mcc will output in format
+        self.data = [depth, dose] (where [depth, dose] is a numpy array)
     '''
     def __init__(self, filestring, norm=True):
         with open(filestring, 'r') as reader:
@@ -45,28 +51,37 @@ class DepthDoseFile:
         # File type represented by the file extension
         self.file_type = os.path.splitext(filestring)[1]
         # All attributes listed here as None to be overwritten depending on the
-        # file type, csv filees don't have gantry angle or energy data
+        # file type, csv filees don't have gantry angle or energy data, mcc files
+        # don't have number of curves
         self.data = None
         self.date = None
         self.energy = None
         self.gantry_angle = None
+        self.no_of_curves = None
 
         # Giraffe MLIC produces csv files containing pdd data in a string
         # format seperated by ;
         if filestring.endswith('csv'):
-            # Find location of depth and dose data and seperate values by ;
+            # Find location of depth and seperate values by ; (Also convert to cm)
             depth_index = self.full_file.index('Curve depth: [mm]')
-            dose_index = self.full_file.index('Curve gains: [counts]')
             depth = self.full_file[1+depth_index].split(';')
-            dose = self.full_file[1+dose_index].split(';')
-
-            # Hopefully this numerical location is consistent
-            date = self.full_file[1][6:25]
-            # Convert to datetime object based on format used in file
+            # Find number of curves
+            no_of_curves = [x for x in self.full_file if x.startswith('Curves:')][0]
+            no_of_curves = int(no_of_curves.split(': ')[1])
+            # Find location of dose and loop, seperating values by ;
+            dose_index = self.full_file.index('Curve gains: [counts]')
+            data_full = []
+            for curve_index in range(0, no_of_curves):
+                dose_one_curve = self.full_file[1+dose_index+curve_index].split(';')
+                data_full.append(np.asarray([depth, dose_one_curve]).astype(float))
+            # Find the date and Convert to datetime object based on format used in file
+            date = [x for x in self.full_file if x.startswith('Date:')][0]
+            date = date[6:25]
             date = datetime.datetime.strptime(date, '%Y-%m-%dT%H:%M:%S')
-
-            self.data = np.asarray([depth, dose]).astype(float)
+            # Add to class
+            self.data = data_full
             self.date = date.strftime('%d/%m/%Y %H:%M:%S')
+            self.no_of_curves = no_of_curves
 
         # The PTW tank produces mcc files containing pdd data
         elif filestring.endswith('mcc'):
@@ -103,7 +118,11 @@ class DepthDoseFile:
                   'Depth dose data not written to object')
         # If norm=True data will be normalised to Dmax
         if norm:
-            normalise(self.data)
+            if filestring.endswith('csv'):
+                for data in self.data:
+                    normalise(data)
+            else:
+                normalise(self.data)
 
 
 def directory_to_dictionary(dir):
@@ -190,7 +209,11 @@ class PeakProperties:
         normalise(data)
 
         if bortfeld_fit_bool:
-            data, fit_report, E0_best = bf.bortfeld_fit(data)
+            data[0] = data[0]/10 # Convert depths to cm
+            data, scaler, fit_report, E0_best = bf.bortfeld_fit(data)
+            data[0] = 10*data[0] # Convert depths back to mm
+            self.bortfeld_data = data
+            self.bortfeld_scaler = scaler
             self.fit_report = fit_report
             self.E0_fit = E0_best
 
