@@ -6,11 +6,11 @@ with Phi0, R0, sigma and epsilon as free parameters.
 
 import numpy as np
 from numpy import inf
-import matplotlib.pyplot as plt
 import math
 import scipy.special as spec
 from lmfit import Model
 from lmfit import Parameters
+
 
 def normalised_dose(x, Phi0, R0, sigma, epsilon):
     ''' Dose as Equation 27 (polyenergetic with straggling)
@@ -19,8 +19,8 @@ def normalised_dose(x, Phi0, R0, sigma, epsilon):
     for x_value in x:
         psi = 1.0*(R0-x_value)/sigma
         num1 = math.exp(-psi*psi/4) * math.pow(sigma, 1.0/p) * spec.gamma(1.0/p)
-        denom = math.sqrt(2*math.pi) * rho * p * math.pow(alpha, 1.0/p) *(1 + beta*R0)
-        num2 = 1.0/sigma * spec.pbdv(-1.0/p,-psi)[0] + (beta/p + gamma*beta + epsilon/R0)*spec.pbdv((-1.0/p -1),-psi)[0]
+        denom = math.sqrt(2*math.pi) * rho * p * math.pow(alpha, 1.0/p) * (1 + beta*R0)
+        num2 = 1.0/sigma * spec.pbdv(-1.0/p, -psi)[0] + (beta/p + gamma*beta + epsilon/R0)*spec.pbdv((-1.0/p - 1), -psi)[0]
         dose = Phi0 * num1 * num2 / denom
         y.append(dose)
     y = np.array(y)
@@ -30,6 +30,7 @@ def normalised_dose(x, Phi0, R0, sigma, epsilon):
     y[y == -inf] = 0
     y[y == inf] = 0
     return np.nan_to_num(y)
+
 
 def only_fit_peak(x, y, R0_init, sigma_init):
     ''' Shorten the data to that within -15*sigma to +6*sigma of the peak
@@ -41,6 +42,7 @@ def only_fit_peak(x, y, R0_init, sigma_init):
     y = y[prox_index:dist_index]
     x = x[prox_index:dist_index]
     return x, y
+
 
 def bortfeld_fit(data):
     ''' Fits Bortfeld1997 equation to the input data (focused around the peak)
@@ -82,10 +84,10 @@ def bortfeld_fit(data):
 
     # Make the model and create the variable parameters
     model = Model(normalised_dose)
-    params=Parameters()
-    params.add("Phi0",value=Phi0_init)
-    params.add("R0",value=R0_init, min=0)
-    params.add("sigma",value=sigma_init, min=0)
+    params = Parameters()
+    params.add("Phi0", value=Phi0_init)
+    params.add("R0", value=R0_init, min=0)
+    params.add("sigma", value=sigma_init, min=0)
     params.add("epsilon", value=epsilon_init, min=0)
 
     # Fit the model
@@ -94,7 +96,7 @@ def bortfeld_fit(data):
 
     # Get best parameters
     energy = math.pow(result.params['R0'].value/alpha, 1.0/p)
-    params_best=Parameters()
+    params_best = Parameters()
     params_best.add("Phi0", value=result.params['Phi0'].value)
     params_best.add("R0", value=result.params['R0'].value, min=0)
     params_best.add("sigma", value=result.params['R0'].value, min=0)
