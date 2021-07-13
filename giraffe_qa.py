@@ -1,14 +1,4 @@
-'''
-Reading and analysis of csv files outputted by the Giraffe.
 
-This programme is capable of assessing both single shot and also movie mode
-outputs. It is also capable of dealing with the duplicated curves that can occur
-in movie mode (but it is not capable of dealing with triplicate curves and
-higher.)
-
-This programme uses Bortfeld fitting to determine the curve parameters.
-
-'''
 
 
 import os
@@ -22,28 +12,47 @@ import pdd_module as pm
 import matplotlib.pyplot as plt
 
 
-
 def main():
+    '''
+    Reading and analysis of csv files outputted by the Giraffe.
+
+    This programme is capable of assessing both single shot and also movie mode
+    outputs. It's also capable of dealing with the duplicated curves that can
+    occur in movie mode (but it is not capable of dealing with triplicate
+    curves and higher.)
+
+    This programme uses Bortfeld fitting to determine the curve parameters.
+    based on the 1997 Paper by Bortfeld
+
+    '''
     # Open file and create pdd object
     filepath = eg.fileopenbox('Select the Giraffe csv file', filetypes='*.csv')
     pdd = pm.DepthDoseFile(filepath)
 
     # Get list of delivered energies (preset or custom)
-    choices=['210-70MeV (every 10MeV)','245-220MeV (every 10MeV + 245MeV)','Custom']
-    selection=eg.choicebox('Delivered energies', 'Energy Selection', choices)
-    if selection == None:
-        print('Please select the delivered energies')
+    choices = ['210-70MeV (every 10MeV)',
+               '245-220MeV (every 10MeV + 245MeV)',
+               'Custom']
+    selection = eg.choicebox('Delivered energies', 'Energy Selection', choices)
+    if not selection:
+        print('None selected - code will terminate')
         raise SystemExit
     elif selection == '210-70MeV (every 10MeV)':
-        energies = [210, 200, 190, 180, 170, 160, 150, 140, 130, 120, 110, 100, 90, 80, 70]
+        energies = [210, 200, 190, 180, 170, 160, 150,
+                    140, 130, 120, 110, 100, 90, 80, 70]
     elif selection == '245-220MeV (every 10MeV + 245MeV)':
         energies = [245, 240, 230, 220]
     elif selection == 'Custom':
-        energies = eg.enterbox('Please enter delivered energies in the following format from highest energy to lowest - 240, 230, etc. Please note this will not write to the database', 'Custom Enery Selection', default='240, 230, ...')
+        energies = eg.enterbox('Please enter delivered energies in the'
+                               'following format from highest energy to the '
+                               'lowest - 240, 230, etc. Please note this will '
+                               'not write to the database',
+                               'Custom Enery Selection',
+                               default='240, 230, ...')
         energies = [float(x) for x in energies.split(', ')]
         for x in energies:
             if x > 245 or x < 70:
-                print('Energy ' + str(x) + ' is out of the allowed range (70-245MeV)')
+                print('Energy ' + str(x) + ' is out of range (70-245MeV)')
                 raise SystemExit
 
     # Create an empty curve list searching for any duplicates
@@ -51,12 +60,15 @@ def main():
     # Search for duplicate curves
     if len(energies) > len(pdd.data):
         # Fewer curves than energies so exit
-        print('Not enough curves for the number of energies supplied. Please try again')
+        print('Not enough curves for the number of energies supplied.'
+              'Please try again - Code will terminate')
         raise SystemExit
     if len(energies) < len(pdd.data):
-        # More curves than energies so search for duplicates (NB: only works for duplicates not triplicates etc.)
-        print('There are more curves than supplied energies. Searching for duplicate curves')
-        for i in range (0, pdd.no_of_curves):
+        # More curves than energies so search for duplicates
+        # (NB: only works for duplicates not triplicates etc.)
+        print('More curves detected than supplied energies. '
+              'Searching for duplicates')
+        for i in range(0, pdd.no_of_curves):
             # Use a dummy energy of 100MeV to run the code.
             props = pm.PeakProperties(pdd.data[i], 100, bortfeld_fit_bool=True)
             curve_list.append(props)
