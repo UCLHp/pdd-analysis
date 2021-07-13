@@ -1,129 +1,119 @@
-import numpy as np
-from numpy import inf
-import math
+'''
+Reading and analysis of csv files outputted by the Giraffe.
+
+This programme is capable of assessing both single shot and also movie mode
+outputs. It is also capable of dealing with the duplicated curves that can occur
+in movie mode (but it is not capable of dealing with triplicate curves and
+higher.)
+
+This programme uses Bortfeld fitting to determine the curve parameters.
+
+'''
+
+
+import os
+import datetime
 
 import easygui as eg
+import numpy as np
 
 import pdd_module as pm
 
+import matplotlib.pyplot as plt
 
-def normalised_dose(x, Phi0, R0, sigma, epsilon):
-    ''' Dose as Equation 27 (Bortfeld 1997 polyenergetic with straggling)
-    x       -> depth
-    Phi0    -> particle fluence
-    R0      -> range
-    sigma   -> gaussian range straggling/ energy spectrum
-    epsilon -> fraction of primary fluence contributing to tail
-    '''
-    y = []
-    for x_value in x:
-        psi = 1.0*(R0-x_value)/sigma  # zeta in the Bortfeld paper
-        num1 = math.exp(-psi*psi/4) * math.pow(sigma, 1.0/p) * spec.gamma(1.0/p)
-        denom = math.sqrt(2*math.pi) * rho * p * math.pow(alpha, 1.0/p) *(1 + beta*R0)
-        num2 = 1.0/sigma * spec.pbdv(-1.0/p,-psi)[0] + (beta/p + gamma*beta + epsilon/R0)*spec.pbdv((-1.0/p -1), -psi)[0]
-        dose = Phi0 * num1 * num2 / denom
-        y.append(dose)
-    y = np.array(y)
-    # REPLACE ALL nan AND inf WITH ZEROS
-    # (This was to catch errors with parabolic cylinder function at low depths
-    # but hopefully not needed if focussing on the peak)
-    y[y == -inf] = 0
-    y[y == inf] = 0
-    return np.nan_to_num(y)
-
-
-def only_fit_peak(x, y, R0_init, sigma_init):
-    ''' Shorten the data to that within -15*sigma to +6*sigma of the peak
-    '''
-    prox_pos = R0_init - 15*sigma_init
-    prox_index = np.argmin(np.absolute(x - prox_pos))
-    dist_pos = R0_init + 6*sigma_init
-    dist_index = np.argmin(np.absolute(x - dist_pos))
-    y = y[prox_index:dist_index]
-    x = x[prox_index:dist_index]
-    return x, y
-
-
-def bortfeld_fit(data):
-    ''' Fits Bortfeld1997 equation to the input data (focused around the peak)
-        and returns a data set constructed by finely sampling the fitted
-        Bortfeld curve.
-
-        Input data:
-            data = [depth, norm_dose]
-            depth = list of depths in cm
-            norm_dose = dose normalised to maximum value (set to 100)
-
-        Output data, fit_report:
-            data = [depth, norm_dose] (as input)
-            fit_report = report of the model fitting as produced by lmfit
-    '''
-
-    global p, alpha, beta, gamma, rho
-
-    # PARAMETERS
-    p = 1.77         # exponent of range-energy relation
-    alpha = 2.2E-3   # Power law: R0=alpha*E0^p, with [E0]=MeV
-    beta = 0.012     # Gradient of linear fit for fluence reduction with residual range (cm^-1)
-    gamma = 0.6      # Fraction of dose from inelastic nuclear interactions absorbed locally
-    rho = 1.0        # Density of material [g/cm^3]
-
-    # Read data
-    x = np.array(data[0])
-    y = np.array(data[1])
-
-    # Form initial guess for optimizer
-    R0_init = x[np.argmax(y)]
-    E0_data = math.pow(R0_init/alpha, 1.0/p)
-    sigma_init = math.sqrt(((0.012*math.pow(R0_init,0.935))**2) + ((0.01*E0_data*alpha*p*math.pow(E0_data,p-1))**2))
-    epsilon_init = 0.1
-    Phi0_init = 1.0
-
-    # Cut data to that closer to the peak
-    x_peak, y_peak = only_fit_peak(x, y, R0_init, sigma_init)
-
-    # Make the model and create the variable parameters
-    model = Model(normalised_dose)
-    params = Parameters()
-    params.add("Phi0", value=Phi0_init)
-    params.add("R0", value=R0_init, min=0)
-    params.add("sigma", value=sigma_init, min=0)
-    params.add("epsilon", value=epsilon_init, min=0)
-
-    # Fit the model
-    result = model.fit(y_peak, params, x=x_peak)
-    fit_report = result.fit_report()
-
-    # Get best parameters
-    energy = math.pow(result.params['R0'].value/alpha, 1.0/p)
-    params_best = Parameters()
-    params_best.add("Phi0", value=result.params['Phi0'].value)
-    params_best.add("R0", value=result.params['R0'].value, min=0)
-    params_best.add("sigma", value=result.params['R0'].value, min=0)
-    params_best.add("epsilon", value=result.params['epsilon'].value, min=0)
-
-    x_bortfeld_best = np.arange(0, int(max(x)+1), 0.0005).tolist()
-    y_bortfeld_best = model.eval(params_best, x=x_bortfeld_best)
-    x_bortfeld_best, y_bortfeld_best = only_fit_peak(x_bortfeld_best, y_bortfeld_best)
-    y_bortfeld_best = [100*value/np.amax(y_bortfeld_best) for value in y_bortfeld_best]
-
-    data = [x_bortfeld_best, y_bortfeld_best]
-
-    return data, fit_report
 
 
 def main():
-    '''Code to print peak properties for acquired giraffe csv file'''
+    # Open file and create pdd object
     filepath = eg.fileopenbox('Select the Giraffe csv file', filetypes='*.csv')
     pdd = pm.DepthDoseFile(filepath)
-    energy = eg.integerbox('Enter Beam Energy (70-245MeV)',
-                           'Enter Energy', lowerbound=70, upperbound=245
-                           )
-    props = pm.PeakProperties(pdd.data, energy)
-    print(f'D80 = {props.Dist80}\n'
-          f'D90 = {props.Dist90}\n'
-          f'D20 = {props.Dist20}\n'
-          f'Fall Off = {props.FallOff}')
+
+    # Get list of delivered energies (preset or custom)
+    choices=['210-70MeV (every 10MeV)','245-220MeV (every 10MeV + 245MeV)','Custom']
+    selection=eg.choicebox('Delivered energies', 'Energy Selection', choices)
+    if selection == None:
+        print('Please select the delivered energies')
+        raise SystemExit
+    elif selection == '210-70MeV (every 10MeV)':
+        energies = [210, 200, 190, 180, 170, 160, 150, 140, 130, 120, 110, 100, 90, 80, 70]
+    elif selection == '245-220MeV (every 10MeV + 245MeV)':
+        energies = [245, 240, 230, 220]
+    elif selection == 'Custom':
+        energies = eg.enterbox('Please enter delivered energies in the following format from highest energy to lowest - 240, 230, etc. Please note this will not write to the database', 'Custom Enery Selection', default='240, 230, ...')
+        energies = [float(x) for x in energies.split(', ')]
+        for x in energies:
+            if x > 245 or x < 70:
+                print('Energy ' + str(x) + ' is out of the allowed range (70-245MeV)')
+                raise SystemExit
+
+    # Create an empty curve list searching for any duplicates
+    curve_list = []
+    # Search for duplicate curves
+    if len(energies) > len(pdd.data):
+        # Fewer curves than energies so exit
+        print('Not enough curves for the number of energies supplied. Please try again')
+        raise SystemExit
+    if len(energies) < len(pdd.data):
+        # More curves than energies so search for duplicates (NB: only works for duplicates not triplicates etc.)
+        print('There are more curves than supplied energies. Searching for duplicate curves')
+        for i in range (0, pdd.no_of_curves):
+            # Use a dummy energy of 100MeV to run the code.
+            props = pm.PeakProperties(pdd.data[i], 100, bortfeld_fit_bool=True)
+            curve_list.append(props)
+        for i in range(0, len(pdd.data)-1):
+            # Check for curves with similar energies
+            if curve_list[i].E0_fit - curve_list[i+1].E0_fit < 2:
+                 choice = eg.boolbox('The curve at position ' + str(i) + ' and ' + str(i+1) + ' appear to the the same, with a fitted energy of ' + str(round(curve_list[i].E0_fit, 2)) + ' and ' + str(round(curve_list[i+1].E0_fit, 2)) + ' respectively. Are these true duplicates?', choices=['No', 'Yes'])
+                 if not choice:
+                     # They are the same energy so add together etc.
+                     data_join = pdd.data[i]
+                     data_join[1] = np.add(pdd.data[i][1], pdd.data[i+1][1])/2
+                     pdd.data[i] = data_join
+                     pdd.data.pop(i+1)
+
+    # Double check that now there are the right number of curves and exit if not, otherwise make a new curve_list.
+    curve_list = []
+    if len(energies) == len(pdd.data):
+        # Same number of energies as curves so create list of the curve properties
+        for i in range (0, len(pdd.data)):
+            props = pm.PeakProperties(pdd.data[i], energies[i], bortfeld_fit_bool=True)
+            curve_list.append(props)
+    else:
+        print('After duplicate search number of curves does not match the number of energies supplied. Please try again')
+        print('No. of curves: ' + str(len(pdd.data)))
+        print('No. of energies: ' + str(len(energies)))
+        raise SystemExit
+
+    # Pull out the results and also plot to make sure everything looks good.
+    plt.figure(figsize=(12,8))
+    for i in range(0, len(pdd.data)):
+        curve_list[i].E0_fit
+        if abs(curve_list[i].E0_fit - energies[i]) > 1:
+            print('WARNING: Significant difference between expected and fitted energies.')
+        print(  'Energy = ' + str(energies[i]))
+        print(  f'E0 = {curve_list[i].E0_fit}\n'
+                f'P80 = {curve_list[i].Prox80}\n'
+                f'P90 = {curve_list[i].Prox90}\n'
+                f'D90 = {curve_list[i].Dist90}\n'
+                f'D80 = {curve_list[i].Dist80}\n'
+                f'D20 = {curve_list[i].Dist20}\n'
+                f'D10 = {curve_list[i].Dist10}\n'
+                f'Fall Off = {curve_list[i].FallOff}\n'
+                f'PTPR = {curve_list[i].PTPR}\n'
+                f'Peak Width = {curve_list[i].PeakWidth}\n'
+                f'Halo Ratio = {curve_list[i].HaloRat}\n'
+                f'NIST Range = {curve_list[i].NISTRange}\n'
+                f'NIST Diff = {curve_list[i].NISTDiff}\n')
+        # Experimental data
+        plt.scatter(pdd.data[i][0], pdd.data[i][1], label=str(energies[i])+" MeV", s=0.5)
+        # Starting fit with initial Phi0, R0, sigma, epsilon
+        plt.plot(curve_list[i].bortfeld_data[0], curve_list[i].bortfeld_data[1]/curve_list[i].bortfeld_scaler, label=str(round(curve_list[i].E0_fit,2))+" MeV")
+    # Format plot
+    plt.legend(loc="upper right", fontsize=6)
+    plt.xlabel("Depth (mm)", fontsize=18)
+    plt.ylabel("Normalised dose", fontsize=18)
+    plt.xticks(size=16); plt.yticks(size=16)
+    plt.show()
 
 
 if __name__ == "__main__":
