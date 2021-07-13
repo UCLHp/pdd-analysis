@@ -2,16 +2,22 @@ import numpy as np
 from numpy import inf
 import math
 
-import pdd_module as pm
 import easygui as eg
+
+import pdd_module as pm
 
 
 def normalised_dose(x, Phi0, R0, sigma, epsilon):
-    ''' Dose as Equation 27 (polyenergetic with straggling)
+    ''' Dose as Equation 27 (Bortfeld 1997 polyenergetic with straggling)
+    x       -> depth
+    Phi0    -> particle fluence
+    R0      -> range
+    sigma   -> gaussian range straggling/ energy spectrum
+    epsilon -> fraction of primary fluence contributing to tail
     '''
     y = []
     for x_value in x:
-        psi = 1.0*(R0-x_value)/sigma
+        psi = 1.0*(R0-x_value)/sigma  # zeta in the Bortfeld paper
         num1 = math.exp(-psi*psi/4) * math.pow(sigma, 1.0/p) * spec.gamma(1.0/p)
         denom = math.sqrt(2*math.pi) * rho * p * math.pow(alpha, 1.0/p) *(1 + beta*R0)
         num2 = 1.0/sigma * spec.pbdv(-1.0/p,-psi)[0] + (beta/p + gamma*beta + epsilon/R0)*spec.pbdv((-1.0/p -1), -psi)[0]
