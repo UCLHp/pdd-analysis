@@ -62,7 +62,7 @@ def bortfeld_fit(data):
     global p, alpha, beta, gamma, rho
 
     # PARAMETERS
-    p = 1.77
+    p = 1.77         # exponent of range-energy relation
     alpha = 2.2E-3   # Power law: R0=alpha*E0^p, with [E0]=MeV
     beta = 0.012     # Gradient of linear fit for fluence reduction with residual range (cm^-1)
     gamma = 0.6      # Fraction of dose from inelastic nuclear interactions absorbed locally
