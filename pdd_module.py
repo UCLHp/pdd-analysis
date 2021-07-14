@@ -41,9 +41,10 @@ class DepthDoseFile:
     File must be either csv or mcc relating to MLIC or tank data respectively.
 
     If MLIC csv will output in format
-        self.data = [[depth, dose1], [depth, dose2]] (where [depth, dose] is a numpy array)
+        self.data = [[depth, dose1], [depth, dose2]]
     If tank mcc will output in format
-        self.data = [depth, dose] (where [depth, dose] is a numpy array)
+        self.data = [depth, dose]
+    note - in both cases "[depth, dose]" is a numpy array)
     '''
     def __init__(self, filestring, norm=True):
         with open(filestring, 'r') as reader:
@@ -51,8 +52,8 @@ class DepthDoseFile:
         # File type represented by the file extension
         self.file_type = os.path.splitext(filestring)[1]
         # All attributes listed here as None to be overwritten depending on the
-        # file type, csv filees don't have gantry angle or energy data, mcc files
-        # don't have number of curves
+        # file type, csv filees don't have gantry angle or energy data,
+        # mcc files don't have number of curves
         self.data = None
         self.date = None
         self.energy = None
@@ -62,7 +63,7 @@ class DepthDoseFile:
         # Giraffe MLIC produces csv files containing pdd data in a string
         # format seperated by ;
         if filestring.endswith('csv'):
-            # Find location of depth and seperate values by ; (Also convert to cm)
+            # Find location of depth and seperate values by ;
             depth_index = self.full_file.index('Curve depth: [mm]')
             depth = self.full_file[1+depth_index].split(';')
             # Find number of curves
@@ -74,7 +75,7 @@ class DepthDoseFile:
             for curve_index in range(0, no_of_curves):
                 dose_one_curve = self.full_file[1+dose_index+curve_index].split(';')
                 data_full.append(np.asarray([depth, dose_one_curve]).astype(float))
-            # Find the date and Convert to datetime object based on format used in file
+            # Find date and convert to datetime object based on format in csv
             date = [x for x in self.full_file if x.startswith('Date:')][0]
             date = date[6:25]
             date = datetime.datetime.strptime(date, '%Y-%m-%dT%H:%M:%S')
