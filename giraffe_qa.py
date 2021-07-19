@@ -72,13 +72,25 @@ def main():
         for i in range(0, len(pdd.data)-1):
             # Check for curves with similar energies
             if curve_list[i].E0_fit - curve_list[i+1].E0_fit < 2:
-                 choice = eg.boolbox('The curve at position ' + str(i) + ' and ' + str(i+1) + ' appear to the the same, with a fitted energy of ' + str(round(curve_list[i].E0_fit, 2)) + ' and ' + str(round(curve_list[i+1].E0_fit, 2)) + ' respectively. Are these true duplicates?', choices=['No', 'Yes'])
-                 if not choice:
+                choice = eg.boolbox('The curve at position '
+                                    + str(i)
+                                    + ' and '
+                                    + str(i+1)
+                                    + ' appear to be the same,'
+                                    'with a fitted energy of '
+                                    + str(round(curve_list[i].E0_fit, 2))
+                                    + ' and '
+                                    + str(round(curve_list[i+1].E0_fit, 2))
+                                    + ' respectively. '
+                                    'Are these true duplicates?',
+                                    choices=['No', 'Yes']
+                                    )
+                if not choice:
                      # They are the same energy so add together etc.
-                     data_join = pdd.data[i]
-                     data_join[1] = np.add(pdd.data[i][1], pdd.data[i+1][1])/2
-                     pdd.data[i] = data_join
-                     pdd.data.pop(i+1)
+                    data_join = pdd.data[i]
+                    data_join[1] = np.add(pdd.data[i][1], pdd.data[i+1][1])/2
+                    pdd.data[i] = data_join
+                    pdd.data.pop(i+1)
 
     # Double check that now there are the right number of curves and exit if not, otherwise make a new curve_list.
     curve_list = []
