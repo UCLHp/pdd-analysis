@@ -1,14 +1,9 @@
-'''
-Fitting Bragg curves using Bortfeld1997's equation
-with Phi0, R0, sigma and epsilon as free parameters.
-
-'''
 import numpy as np
 from numpy import inf
 import matplotlib.pyplot as plt
 import math
-import datetime
 import scipy.special as spec
+
 import easygui as eg
 from lmfit import Model
 from lmfit import Parameters
@@ -55,7 +50,7 @@ def read_data(filepath):
         file.close()
         for line in lines:
             depth.append(float(line.strip().split(",")[0]))
-            dose.append(float( line.strip().split(",")[1]))
+            dose.append(float(line.strip().split(",")[1]))
         depth = [float(value)/10 for value in depth]
         max_dose = max(dose)
         norm_dose = [100*d/max_dose for d in dose]
@@ -63,18 +58,26 @@ def read_data(filepath):
 
     return data_full
 
+
 def normalised_dose(x, Phi0, R0, sigma, epsilon):
     ''' Dose as Equation 27 (polyenergetic with straggling)
+    based on the 1997 Paper by Bortfeld
+
+    x = depth
+    Phi0 = primary fluence
+    R0 = range
+    sigma = gaussian spread of the peak
+    epsilon = fraction of primary fluence contributing to the "tail"
     '''
     y = []
     for x_value in x:
         psi = 1.0*(R0-x_value)/sigma
         num1 = math.exp(-psi*psi/4) * math.pow(sigma, 1.0/p) * spec.gamma(1.0/p)
         denom = math.sqrt(2*math.pi) * rho * p * math.pow(alpha, 1.0/p) *(1 + beta*R0)
-        num2 = 1.0/sigma * spec.pbdv(-1.0/p,-psi)[0] + (beta/p + gamma*beta + epsilon/R0)*spec.pbdv((-1.0/p -1),-psi)[0]
-        # For points significantly beyond the peak num1*num2 becomes 0.0*inf and
-        # so triggers a RuntimeWarning. This returns NaN which can then be turned
-        # to zero with no significant loss of accuracy.
+        num2 = 1.0/sigma * spec.pbdv(-1.0/p, -psi)[0] + (beta/p + gamma*beta + epsilon/R0)*spec.pbdv((-1.0/p - 1), -psi)[0]
+        # For points significantly beyond the peak num1*num2 becomes 0.0*inf
+        # triggering a RuntimeWarning. This returns NaN which can then be
+        # set to zero with no significant loss of accuracy.
         dose = Phi0 * num1 * num2 / denom
         y.append(dose)
     y = np.array(y)
@@ -82,6 +85,7 @@ def normalised_dose(x, Phi0, R0, sigma, epsilon):
     y[y == -inf] = 0
     y[y == inf] = 0
     return np.nan_to_num(y)
+
 
 def only_fit_peak(x, y, R0_init, sigma_init):
     ''' Shorten the data to that within -18*sigma to +8*sigma of the peak
@@ -94,7 +98,16 @@ def only_fit_peak(x, y, R0_init, sigma_init):
     x = x[prox_index:dist_index]
     return x, y
 
+
 def make_plot(model, x, y, E0_data, params, x_bortfeld_best, y_bortfeld_best, E0_best, params_best):
+    ''' Plot the figure to display measured data vs fitted model
+
+    model =  lmfit model object of normalised dose object
+    x,y = measured depth dose data
+    E0_data = initial guess of Energy based on range
+    params = parameters for
+
+    '''
 
     plt.figure(figsize=(12,8))
     # Experimental data
