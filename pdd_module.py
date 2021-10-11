@@ -3,6 +3,9 @@ import datetime
 import os
 import easygui as eg
 import pandas as pd
+import glob
+import warnings
+from pydicom import *
 
 import bortfeld_fit as bf
 
@@ -113,19 +116,146 @@ class DepthDoseFile:
             # Transpose means data[0] = x data, data[1] = y data
             self.data = np.transpose((data.astype(float)))
 
+        # The PTW tank produces mcc files containing pdd data
+        elif filestring.endswith('asc'):
+            # Find indices for required data in file
+            energy_index = [i for i, elem in enumerate(self.full_file)
+                            if 'ENERGY' in elem]
+            date_index = [i for i, elem in enumerate(self.full_file)
+                          if 'DATE' in elem]
+            start_index = [i+1 for i, elem in enumerate(self.full_file)
+                          if '%NET 0.0' in elem]
+            end_index = [i for i, elem in enumerate(self.full_file)
+                          if '$ENOM' in elem]
+            no_of_curves = len(start_index)
+            
+            
+            # Find location of dose and loop, seperating values by ;
+            data_full = []
+            energy = []
+            for curve_index in range(0, no_of_curves):
+                data = [self.full_file[i].split()[3:-1] for i in range(start_index[curve_index], end_index[curve_index])]
+                data = np.asarray(data)
+                data = np.transpose((data.astype(float)))
+                data_full.append(data)
+                # Read energy
+                energy.append(float(self.full_file[energy_index[curve_index]][8:]))
+            
+            # Read date as string, then datetime object based on formatting
+            date = self.full_file[date_index[0]][6:]
+            date = datetime.datetime.strptime(date, '%Y-%m-%d')
+            
+
+            # Add to class
+            self.data = data_full
+            self.energy = energy
+            self.date = date
+            self.no_of_curves = no_of_curves
+            self.norm = norm
+
         # File types other than csv or mcc not currently supported
         else:
             print(f'File not recognised for {filestring}\n'
                   'Depth dose data not written to object')
         # If norm=True data will be normalised to Dmax
         if norm:
-            if filestring.endswith('csv'):
+            if filestring.endswith(('csv','asc')):
                 for data in self.data:
                     normalise(data)
             else:
                 normalise(self.data)
 
 
+class DoseCube:
+    '''
+    Class to create a depth dose object that contains the full depth dose data.
+    '''
+    def __init__(self, dicomRoot, norm=True, msg=True):
+        
+        # RT Dose files
+        dicomRoot = os.path.normpath(dicomRoot)
+        planFile = glob.glob(os.path.join(dicomRoot,"RN*.dcm"))
+        if len(planFile) !=1:
+            eg.msgbox("Missing or incorrect number of plan files. Code will terminate",
+                      title="DICOM Plan File Error")
+            raise SystemExit
+        else:
+            planFile = planFile[0]
+            
+        doseFiles = glob.glob(os.path.join(dicomRoot,"RD*.dcm"))
+        num_files = len(doseFiles)
+        
+        # Plan data
+        if msg:
+            print("Processing plan file: "+planFile)
+            
+        pfile = dcmread(planFile)
+        plan_date = pfile.RTPlanDate
+        plan_beam_name = []
+        plan_beam_number = []
+        plan_energy = []
+        plan_gantry_angle = []
+        for beam in pfile.IonBeamSequence:
+            plan_beam_name.append(beam.BeamName)
+            plan_beam_number.append(beam.BeamNumber)
+            control_points = beam.IonControlPointSequence[0]
+            plan_energy.append(int(control_points.NominalBeamEnergy))
+            plan_gantry_angle.append(int(control_points.GantryAngle))
+            
+        if len(plan_beam_number) != num_files:
+            warnings.warn("Incorrect number of dose files. Check output.")
+            
+        # Loop through RT dose files
+        data = []
+        beam_name = []
+        energy = []
+        gantry_angle = []
+        dose_beam_number = []
+        i=1
+        for f in doseFiles:
+            if msg:
+                print("Processing dose file "+str(i)+" of "+str(num_files)+": "+f)
+                
+            dfile = dcmread(f)
+            dvol = dfile.pixel_array # record dose
+            # Preallocate data
+            dose1D = np.zeros((2,dvol.shape[2]))
+            # Geometry
+            cube_vertex = dfile.ImagePositionPatient
+            pixel_spacing = dfile.PixelSpacing
+            depths = np.arange(0, dose1D.shape[1]*pixel_spacing[0], pixel_spacing[0])                            
+            # create depth-dose profile
+            dose2D = np.sum(dvol,0)
+            dose1D[0,:] = depths
+            dose1D[1,:] = np.sum(dose2D,0)
+            data.append(dose1D)
+            # Beam parameters
+            beam_seq = dfile.ReferencedRTPlanSequence[0].ReferencedFractionGroupSequence[0].ReferencedBeamSequence[0]
+            beam_number =beam_seq.ReferencedBeamNumber
+            beam_index = plan_beam_number.index(beam_number)
+            beam_name.append(plan_beam_name[beam_index])
+            energy.append(plan_energy[beam_index])
+            gantry_angle.append(plan_gantry_angle[beam_index])
+            dose_beam_number.append(beam_number)
+            # counter 
+            i += 1
+        
+        # If norm=True data will be normalised to Dmax
+        if norm:
+            for d in data:
+                normalise(d)
+        
+        self.rt_plan_file = planFile
+        self.rt_dose_files = doseFiles
+        self.date = plan_date
+        self.no_of_curves = num_files
+        self.data = data
+        self.energy = energy
+        self.gantry_angle = gantry_angle
+        self.dose_beam_number = dose_beam_number
+        self.beam_name = beam_name
+    
+        
 def directory_to_dictionary(dir):
     '''
     Takes a directory containing pdd files (mcc or csv) and will return a
@@ -353,3 +483,5 @@ def check_dataframes(DF1, DF2):
     # Pass if dataframes are the same
     else:
         pass
+    
+    
