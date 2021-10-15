@@ -41,8 +41,10 @@ class DepthDoseFile:
     Class to create a depth dose object that contains the full depth dose data
     as well as the properties provided in files.
 
-    File must be either csv or mcc relating to MLIC or tank data respectively.
-
+    File must be either asc, csv or mcc relating to Eclipse, MLIC or tank data respectively.
+    
+    If asc will output in format
+        self.data = [[depth, dose1], [depth, dose2]]        
     If MLIC csv will output in format
         self.data = [[depth, dose1], [depth, dose2]]
     If tank mcc will output in format
@@ -168,9 +170,31 @@ class DepthDoseFile:
 
 class DoseCube:
     '''
-    Class to create a depth dose object that contains the full depth dose data.
+    Return IDDs from DICOM files.
+    
+    Create IDDs along an axis of choice from an RT Plan dicom and associated RT Dose dicom files.
+    
+    Args:
+        dicomRoot (str): Path to directory containing dicom files.
+        depth_axis (str): Eclipse axis of integration, either 'x' (default), 'y', 'z'.
+        norm (bool): True normalises IDDs.
+        msg (bool): Prints progress to terminal.
+    
+    Attributes:
+        rt_plan_file (str): RT Plan dicom file name
+        rt_dose_files (list): RT Dose dicom file names as strings
+        date (str): RT Plan date
+        no_of_curves (int): Number of IDD curves (should be equivalent to number of fields).
+        data (list): Numpy arrays with dimension 2xN, specifying depth (mm) and dose (MeV).
+        energy (list): MeV field energies (float).
+        gantry_angle (list): Gantry angles (float).
+        dose_beam_number (list): Beam numbers specified in RT Dose file (str).
+        beam_name (list): Field names specified in RT Plan file (str).
+        isocentre (float): Numpy array specifying Eclipse isocentre coordinate (X,Y,Z).
+        dosecube_vertex (list): Dosecube vertex coordinates (RIGHT, ANT, INF) as numpy float arrays.
+    
     '''
-    def __init__(self, dicomRoot, norm=True, msg=True):
+    def __init__(self, dicomRoot, depth_axis='x', norm=True, msg=True):
         
         # RT Dose files
         dicomRoot = os.path.normpath(dicomRoot)
@@ -195,12 +219,14 @@ class DoseCube:
         plan_beam_number = []
         plan_energy = []
         plan_gantry_angle = []
+        isocentre = []
         for beam in pfile.IonBeamSequence:
             plan_beam_name.append(beam.BeamName)
             plan_beam_number.append(beam.BeamNumber)
             control_points = beam.IonControlPointSequence[0]
-            plan_energy.append(int(control_points.NominalBeamEnergy))
-            plan_gantry_angle.append(int(control_points.GantryAngle))
+            plan_energy.append(float(control_points.NominalBeamEnergy))
+            plan_gantry_angle.append(float(control_points.GantryAngle))
+            isocentre.append(np.array(control_points.IsocenterPosition))
             
         if len(plan_beam_number) != num_files:
             warnings.warn("Incorrect number of dose files. Check output.")
@@ -211,6 +237,7 @@ class DoseCube:
         energy = []
         gantry_angle = []
         dose_beam_number = []
+        cube_vertex = []
         i=1
         for f in doseFiles:
             if msg:
@@ -218,16 +245,34 @@ class DoseCube:
                 
             dfile = dcmread(f)
             dvol = dfile.pixel_array # record dose
-            # Preallocate data
-            dose1D = np.zeros((2,dvol.shape[2]))
-            # Geometry
-            cube_vertex = dfile.ImagePositionPatient
-            pixel_spacing = dfile.PixelSpacing
-            depths = np.arange(0, dose1D.shape[1]*pixel_spacing[0], pixel_spacing[0])                            
-            # create depth-dose profile
-            dose2D = np.sum(dvol,0)
-            dose1D[0,:] = depths
-            dose1D[1,:] = np.sum(dose2D,0)
+            # record depth and geometry
+            cube_vertex.append(dfile.ImagePositionPatient) 
+            if depth_axis == 'x':
+                dose1D = np.zeros((2,dvol.shape[2]))
+                pixel_spacing = dfile.PixelSpacing[1]
+                # dose depth
+                dose1D[0,:] = np.arange(0, dose1D.shape[1]*pixel_spacing, pixel_spacing)
+                # dose profile  
+                dose2D = np.sum(dvol,0)
+                dose1D[1,:] = np.sum(dose2D,0)
+            elif depth_axis == 'y':
+                dose1D = np.zeros((2,dvol.shape[1]))
+                pixel_spacing = dfile.PixelSpacing[0]
+                # dose depth
+                dose1D[0,:] = np.arange(0, dose1D.shape[1]*pixel_spacing, pixel_spacing) 
+                # dose profile
+                dose2D = np.sum(dvol,2)
+                dose1D[1,:] = np.sum(dose2D,0) 
+            elif depth_axis == 'z':
+                dose1D = np.zeros((2,dvol.shape[0]))
+                # dose depth
+                dose1D[0,:] = np.array(dfile.GridFrameOffsetVector)
+                # dose profile
+                dose2D = np.sum(dvol,1)
+                dose1D[1,:] = np.sum(dose2D,1) 
+            else:
+                raise Exception("input parameter depth_axis must be a str: x, y, or z")                                          
+
             data.append(dose1D)
             # Beam parameters
             beam_seq = dfile.ReferencedRTPlanSequence[0].ReferencedFractionGroupSequence[0].ReferencedBeamSequence[0]
@@ -254,6 +299,8 @@ class DoseCube:
         self.gantry_angle = gantry_angle
         self.dose_beam_number = dose_beam_number
         self.beam_name = beam_name
+        self.isocentre = isocentre
+        self.dosecube_vertex = cube_vertex
     
         
 def directory_to_dictionary(dir):
