@@ -340,13 +340,16 @@ def prox_depth_seeker(dose, data):
     The value returned will be on the shallower side of the bragg peak
     '''
     index = np.argmax((data[1]) > dose)
-    y0 = (data[1][index - 1])
-    y1 = (data[1][index])
-    x0 = (data[0][index - 1])
-    x1 = (data[0][index])
-    slope = ((y1-y0) / (x1-x0))
-    intercept = y0 - (slope*x0)
-    proximal = (dose-intercept) / slope
+    if index == 0:
+        proximal = None
+    else:
+        y0 = (data[1][index - 1])
+        y1 = (data[1][index])
+        x0 = (data[0][index - 1])
+        x1 = (data[0][index])
+        slope = ((y1-y0) / (x1-x0))
+        intercept = y0 - (slope*x0)
+        proximal = (dose-intercept) / slope
     return proximal
 
 
@@ -356,13 +359,16 @@ def dist_depth_seeker(dose, data):
     The value returned will be on the deeper side of the bragg peak
     '''
     index = np.argmax((np.asarray(list(reversed(data[1])))) > dose)
-    y0 = (data[1][len(data[1])-index-1])
-    y1 = (data[1][len(data[1])-index])
-    x0 = (data[0][len(data[0])-index-1])
-    x1 = (data[0][len(data[0])-index])
-    slope = ((y1-y0)/(x1-x0))
-    intercept = y0-(slope*x0)
-    distal = (dose-intercept)/slope
+    if index == 0:
+        distal = None
+    else:
+        y0 = (data[1][len(data[1])-index-1])
+        y1 = (data[1][len(data[1])-index])
+        x0 = (data[0][len(data[0])-index-1])
+        x1 = (data[0][len(data[0])-index])
+        slope = ((y1-y0)/(x1-x0))
+        intercept = y0-(slope*x0)
+        distal = (dose-intercept)/slope
     return distal
 
 
@@ -409,13 +415,22 @@ class PeakProperties:
         # Peak to Plateau Ratio (PTPR) is calculated at a user defined depth
         # The default value is set to 25mm deep
         self.PTPR = 100/np.interp(plateau_depth, data[0], data[1])
-        self.FallOff = self.Dist20 - self.Dist80
-        self.PeakWidth = self.Dist80 - self.Prox80
-        # Halo ratio is the dose(%) at a depth one peakwidth shallower than
-        # the Prox80
-        self.HaloRat = np.interp(prox_depth_seeker(80, data)
-                                 - self.PeakWidth, data[0], data[1]
-                                 )
+        if self.Dist20 and self.Dist80:
+            self.FallOff = self.Dist20 - self.Dist80
+        else:
+            self.FallOff = None
+
+        if self.Dist80 and self.Prox80:
+            self.PeakWidth = self.Dist80 - self.Prox80            
+            # Halo ratio is the dose(%) at a depth one peakwidth shallower than
+            # the Prox80
+            self.HaloRat = np.interp(prox_depth_seeker(80, data)
+                                    - self.PeakWidth, data[0], data[1]
+                                    )
+        else:
+            self.PeakWidth = None
+            self.HaloRat = None
+
 
 
 def pdd_gamma(test_data, ref_data, setgamma, crit):

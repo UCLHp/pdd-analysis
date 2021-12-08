@@ -2,6 +2,7 @@ import pdd_module as pdd
 import os
 import easygui as eg
 import xlsxwriter
+import pickle
 # import test.test_version
 
 
@@ -111,7 +112,16 @@ def main():
         print(str(key) + ' Done')
 
     workbook.close()
+    
 
+    # save data to pickle
+    with open(os.path.join(save_dir,'data.p'), 'wb') as d:
+        pickle.dump(data, d, protocol=pickle.HIGHEST_PROTOCOL)
+
+    with open(os.path.join(save_dir,'data_properties.p'), 'wb') as dp:
+        pickle.dump(data_properties, dp, protocol=pickle.HIGHEST_PROTOCOL)
+        
+    print('Data saved to '+save_dir)
 
 if __name__ == '__main__':
     main()
