@@ -7,7 +7,6 @@ import numpy as np
 from numpy import inf
 import matplotlib.pyplot as plt
 import math
-import datetime
 import scipy.special as spec
 import easygui as eg
 from lmfit import Model
@@ -55,13 +54,14 @@ def read_data(filepath):
         file.close()
         for line in lines:
             depth.append(float(line.strip().split(",")[0]))
-            dose.append(float( line.strip().split(",")[1]))
+            dose.append(float(line.strip().split(",")[1]))
         depth = [float(value)/10 for value in depth]
         max_dose = max(dose)
         norm_dose = [100*d/max_dose for d in dose]
         data_full = [np.asarray([depth, norm_dose]).astype(float)]
 
     return data_full
+
 
 def normalised_dose(x, Phi0, R0, sigma, epsilon):
     ''' Dose as Equation 27 (polyenergetic with straggling)
@@ -72,9 +72,9 @@ def normalised_dose(x, Phi0, R0, sigma, epsilon):
         num1 = math.exp(-psi*psi/4) * math.pow(sigma, 1.0/p) * spec.gamma(1.0/p)
         denom = math.sqrt(2*math.pi) * rho * p * math.pow(alpha, 1.0/p) *(1 + beta*R0)
         num2 = 1.0/sigma * spec.pbdv(-1.0/p,-psi)[0] + (beta/p + gamma*beta + epsilon/R0)*spec.pbdv((-1.0/p -1),-psi)[0]
-        # For points significantly beyond the peak num1*num2 becomes 0.0*inf and
-        # so triggers a RuntimeWarning. This returns NaN which can then be turned
-        # to zero with no significant loss of accuracy.
+        # For points significantly beyond the peak num1*num2 becomes 0.0*inf
+        # and so triggers a RuntimeWarning. This returns NaN which can then be
+        # turned to zero with no significant loss of accuracy.
         dose = Phi0 * num1 * num2 / denom
         y.append(dose)
     y = np.array(y)
@@ -82,6 +82,7 @@ def normalised_dose(x, Phi0, R0, sigma, epsilon):
     y[y == -inf] = 0
     y[y == inf] = 0
     return np.nan_to_num(y)
+
 
 def only_fit_peak(x, y, R0_init, sigma_init):
     ''' Shorten the data to that within -18*sigma to +8*sigma of the peak
@@ -94,30 +95,34 @@ def only_fit_peak(x, y, R0_init, sigma_init):
     x = x[prox_index:dist_index]
     return x, y
 
+
 def make_plot(model, x, y, E0_data, params, x_bortfeld_best, y_bortfeld_best, E0_best, params_best):
 
-    plt.figure(figsize=(12,8))
+    plt.figure(figsize=(12, 8))
     # Experimental data
-    plt.scatter(x, y, label="Measured data "+str(E0_data)+" MeV", s=0.5, c="black")
+    plt.scatter(x, y, label="Measured data "+str(E0_data)+" MeV", s=0.5,
+                c="black")
     # Starting fit with initial Phi0, R0, sigma, epsilon
     x_bortfeld = np.arange(0, int(max(x)+1), 0.001).tolist()
     y_bortfeld = model.eval(params, x=x_bortfeld)
-    plt.plot(x_bortfeld, y_bortfeld, label="Bortfeld1997 polyenergetic", linestyle="--")
+    plt.plot(x_bortfeld, y_bortfeld, label="Bortfeld1997 polyenergetic",
+             linestyle="--")
     # Best fit with optimised Phi0, R0, sigma, epsilon
-    lbl = "Best fit: R0="+str(round(params_best['R0'].value,2))
-    lbl=lbl+", sigma="+str(round(params_best['sigma'].value,2))
-    lbl=lbl+" epsilon="+str(round(params_best['epsilon'].value,2))
-    lbl=lbl+" Phi0="+str(round(params_best['Phi0'].value,2))
-    lbl=lbl+" E0="+str(round(E0_best,2))
+    lbl = "Best fit: R0=" + str(round(params_best['R0'].value, 2))
+    lbl = lbl + ", sigma=" + str(round(params_best['sigma'].value, 2))
+    lbl = lbl + " epsilon=" + str(round(params_best['epsilon'].value, 2))
+    lbl = lbl + " Phi0=" + str(round(params_best['Phi0'].value, 2))
+    lbl = lbl + " E0=" + str(round(E0_best, 2))
     x_bortfeld_best = np.arange(0, int(max(x)+1), 0.001).tolist()
     y_bortfeld_best = model.eval(params_best, x=x_bortfeld_best)
     x_bortfeld_best, y_bortfeld_best = only_fit_peak(x_bortfeld_best, y_bortfeld_best, params['R0'].value, params['sigma'].value)
     plt.plot(x_bortfeld_best, y_bortfeld_best, label=lbl)
     # Format plot
-    plt.legend( loc="upper left", fontsize=16 )
+    plt.legend(loc="upper left", fontsize=16)
     plt.xlabel("Depth (cm)", fontsize=18)
     plt.ylabel("Normalised dose", fontsize=18)
-    plt.xticks(size=16); plt.yticks(size=16)
+    plt.xticks(size=16)
+    plt.yticks(size=16)
     plt.show()
 
     return
@@ -156,17 +161,17 @@ def bortfeld_fit(data, plotting=False):
     E0_data = math.pow(R0_init/alpha, 1.0/p)
     sigma_init = math.sqrt(((0.012*math.pow(R0_init,0.935))**2) + ((0.01*E0_data*alpha*p*math.pow(E0_data,p-1))**2))
     epsilon_init = 0.1
-    Phi0_init = 0.0192*E0_data + 1.2152 # Derived emperically from some trial fits
+    Phi0_init = 0.0192*E0_data + 1.2152  # Derived emperically from trial fits
 
     # Cut data to that closer to the peak
     x_peak, y_peak = only_fit_peak(x, y, R0_init, sigma_init)
 
     # Make the model and create the variable parameters
     model = Model(normalised_dose)
-    params=Parameters()
-    params.add("Phi0",value=Phi0_init)
-    params.add("R0",value=R0_init, min=0)
-    params.add("sigma",value=sigma_init, min=0)
+    params = Parameters()
+    params.add("Phi0", value=Phi0_init)
+    params.add("R0", value=R0_init, min=0)
+    params.add("sigma", value=sigma_init, min=0)
     params.add("epsilon", value=epsilon_init, min=0)
 
     # Fit the model
@@ -175,7 +180,7 @@ def bortfeld_fit(data, plotting=False):
 
     # Get best parameters
     energy = math.pow(result.params['R0'].value/alpha, 1.0/p)
-    params_best=Parameters()
+    params_best = Parameters()
     params_best.add("Phi0", value=result.params['Phi0'].value)
     params_best.add("R0", value=result.params['R0'].value, min=0)
     params_best.add("sigma", value=result.params['sigma'].value, min=0)
@@ -205,10 +210,11 @@ if __name__ == "__main__":
     filepath = eg.fileopenbox('Select the csv file', filetypes='*.csv')
     data_full = read_data(filepath)
 
+    dict = {}
     # Perform fit and print basic results
     for data in data_full:
-        data, scaler, fit_report, E0_best = bortfeld_fit(data, plotting=True)
-        print('Energy = '+str(round(E0_best,2)))
+        data, scaler, fit_report, E0_best = bortfeld_fit(data, plotting=False)
+        print('Energy = '+str(round(E0_best, 2)))
         print('P80 = '+str(pm.prox_depth_seeker(80, data)))
         print('P90 = '+str(pm.prox_depth_seeker(90, data)))
         print('D90 = '+str(pm.dist_depth_seeker(90, data)))
@@ -216,10 +222,11 @@ if __name__ == "__main__":
         print('D20 = '+str(pm.dist_depth_seeker(20, data)))
         print('D10 = '+str(pm.dist_depth_seeker(10, data)))
         print()
+        dict[str(round(E0_best,2))] = [pm.dist_depth_seeker(20, data), pm.dist_depth_seeker(80, data), pm.dist_depth_seeker(90, data)]
+    import pandas as pd
 
-
-
-
+    df = pd.DataFrame.from_dict(dict)
+    pd.DataFrame.to_csv(df, 'output.csv')
 
 
 
