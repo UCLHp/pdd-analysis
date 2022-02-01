@@ -128,9 +128,9 @@ def main():
     # once it's already in the database.
 
     if not eg.ynbox(msg='Please confirm that the following information is '
-                    'correct... \n\nOperator = ' + operator + '\nGantry = ' +
-                    gantry + '\nMeasurement Type = ' + measurement_type +
-                    '\nChamber/Device = ' + device + '\nWET = ' + str(offset)
+                    'correct... \n\nOperator = ' + operator + '\nGantry = '
+                    + gantry + '\nMeasurement Type = ' + measurement_type
+                    + '\nChamber/Device = ' + device + '\nWET = ' + str(offset)
                     + ga_string,
                     title='User Input Confirmation'):
         eg.msgbox('User inputs not confirmed. Please re-run', 'Input Error')
@@ -160,37 +160,37 @@ def main():
               round(metrics.HaloRat, ROUNDDATA),
               round(metrics.PTPR, ROUNDDATA),
               round(ref_props_gant_qs.query(f'energy=={key}')['prox 80'].item()
-              - metrics.Prox80, ROUNDDATA),
+                    - metrics.Prox80, ROUNDDATA),
               round(ref_props_gant_qs.query(f'energy=={key}')['prox 90'].item()
-              - metrics.Prox90, ROUNDDATA),
+                    - metrics.Prox90, ROUNDDATA),
               round(ref_props_gant_qs.query(f'energy=={key}')['dist 90'].item()
-              - metrics.Dist90, ROUNDDATA),
+                    - metrics.Dist90, ROUNDDATA),
               round(ref_props_gant_qs.query(f'energy=={key}')['dist 80'].item()
-              - metrics.Dist80, ROUNDDATA),
+                    - metrics.Dist80, ROUNDDATA),
               round(ref_props_gant_qs.query(f'energy=={key}')['dist 20'].item()
-              - metrics.Dist20, ROUNDDATA),
+                    - metrics.Dist20, ROUNDDATA),
               round(ref_props_gant_qs.query(f'energy=={key}')['dist 10'].item()
-              - metrics.Dist10, ROUNDDATA),
+                    - metrics.Dist10, ROUNDDATA),
               round(ref_props_gant_qs.query(f'energy=={key}')['halo ratio'].item()
-              - metrics.HaloRat, ROUNDDATA),
+                    - metrics.HaloRat, ROUNDDATA),
               round(ref_props_gant_qs.query(f'energy=={key}')['ptpr'].item()
-              - metrics.PTPR, ROUNDDATA),
+                    - metrics.PTPR, ROUNDDATA),
               round(ref_props_tps_qs.query(f'energy=={key}')['prox 80'].item()
-              - metrics.Prox80, ROUNDDATA),
+                    - metrics.Prox80, ROUNDDATA),
               round(ref_props_tps_qs.query(f'energy=={key}')['prox 90'].item()
-              - metrics.Prox90, ROUNDDATA),
+                    - metrics.Prox90, ROUNDDATA),
               round(ref_props_tps_qs.query(f'energy=={key}')['dist 90'].item()
-              - metrics.Dist90, ROUNDDATA),
+                    - metrics.Dist90, ROUNDDATA),
               round(ref_props_tps_qs.query(f'energy=={key}')['dist 80'].item()
-              - metrics.Dist80, ROUNDDATA),
+                    - metrics.Dist80, ROUNDDATA),
               round(ref_props_tps_qs.query(f'energy=={key}')['dist 20'].item()
-              - metrics.Dist20, ROUNDDATA),
+                    - metrics.Dist20, ROUNDDATA),
               round(ref_props_tps_qs.query(f'energy=={key}')['dist 10'].item()
-              - metrics.Dist10, ROUNDDATA),
+                    - metrics.Dist10, ROUNDDATA),
               round(ref_props_tps_qs.query(f'energy=={key}')['halo ratio'].item()
-              - metrics.HaloRat, ROUNDDATA),
+                    - metrics.HaloRat, ROUNDDATA),
               round(ref_props_tps_qs.query(f'energy=={key}')['ptpr'].item()
-              - metrics.PTPR, ROUNDDATA)
+                    - metrics.PTPR, ROUNDDATA)
               ]
 
         sql = ('INSERT INTO [PDD Results] ([ADate], [Record Date], '

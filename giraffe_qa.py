@@ -12,28 +12,86 @@ This programme uses Bortfeld fitting to determine the curve parameters.
 
 
 import os
+from datetime import date
 
 import easygui as eg
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
+import PySimpleGUI as sg
+from datetime import datetime, timedelta
 
 import pdd_module as pm
+import database_interaction as di
+import pdf_report as pdf
+import giraffe_gui as gg
 
 
-def measured_energies():
+class ReferenceData:
+    '''
+    Pull reference data from csv
+    '''
+
+    def __init__(self, dirpath, gantry):
+        filename_tps = 'Giraffe Reference Data - TPS.csv'
+        filepath_tps = os.path.join(dirpath, filename_tps)
+        filename_gantry = 'Giraffe Reference Data - ' + gantry + '.csv'
+        filepath_gantry = os.path.join(dirpath, filename_gantry)
+        self.df_gantry = pd.read_csv(filepath_gantry, index_col=0)
+        self.df_tps = pd.read_csv(filepath_tps, index_col=0)
+
+
+class GUI:
+    '''
+    Acquire user inputs.
+    '''
+
+    def __init__(self, database_dir):
+        # Select Operator
+        operators = di.db_fetch(database_dir, 'Operators', pswrd='')
+        operators = sorted([row[2] for row in operators])
+        operators.append('')
+        # Select Gantry
+        machines = di.db_fetch(database_dir, 'Machines', pswrd='')
+        machines = sorted([row[0] for row in machines if 'Gantry' in row[0]])
+        # Select Gantry
+        gantry_angles = ['270', '0', '90', '180']
+        # Select Equipment
+        equipment_list = di.db_fetch(database_dir, 'Assets', pswrd='')
+        equipment_list = [row[1]
+                          for row in equipment_list if 'Giraffe MLIC' in row[1]]
+
+        values = gg.giraffe_gui(operators=operators,
+                                machines=machines,
+                                gantry_angles=gantry_angles,
+                                equipment_list=equipment_list)
+
+        self.adate = None
+        self.report_dirpath = values['REPORT_FOLDER']
+        self.operator_1 = values['OPERATOR_1']
+        if values['OPERATOR_2'] == '':
+            values['OPERATOR_2'] = None
+        self.operator_2 = values['OPERATOR_2']
+        self.gantry = values['GANTRY']
+        self.gantry_angle = values['GANTRY_ANGLE']
+        self.equipment = values['EQUIPMENT']
+        self.title = None
+        self.dirname = None
+        self.f1 = [values['F1'], measured_energies(values['F1_ENERGIES'])]
+        self.f2 = [values['F2'], measured_energies(values['F2_ENERGIES'])]
+        self.f3 = [values['F3'], measured_energies(values['F3_ENERGIES'])]
+        self.f4 = [values['F4'], measured_energies(values['F4_ENERGIES'])]
+        self.f5 = [values['F5'], measured_energies(values['F5_ENERGIES'])]
+
+
+def measured_energies(selection):
     '''
     Get list of delivered energies (preset or custom)
     '''
-    choices = ['210-70MeV (every 10MeV)',
-               '245-220MeV (every 10MeV + 245MeV)',
-               'Custom']
-    selection = eg.choicebox('Delivered energies', 'Energy Selection', choices)
 
-    if selection is None:
-        print('Please select the delivered energies')
-        os.system('pause')
-        raise SystemExit
+    if selection == '':
+        energies = None
 
     elif selection == '210-70MeV (every 10MeV)':
         energies = [210, 200, 190, 180, 170, 160,
@@ -43,21 +101,14 @@ def measured_energies():
         energies = [245, 240, 230, 220]
 
     elif selection == 'Custom':
-        energies = eg.enterbox('Please enter delivered energies in the '
-                               'following format from highest energy to '
-                               'lowest - 240, 230, etc. Please note this will '
-                               'not write to the database',
-                               'Custom Enery Selection',
-                               default='240, 230, ...')
-        energies = [float(x) for x in energies.split(', ')]
-        for x in energies:
-            if x > 245 or x < 70:
-                print('Energy ' + str(x)
-                      + ' is out of the allowed range (70-245MeV)')
-                os.system('pause')
-                raise SystemExit
+        energies = gg.custom_energies()
 
-    return selection, energies
+    else:
+        print('Unknown selection')
+        os.system('pause')
+        raise SystemExit
+
+    return energies
 
 
 def check_curve_list(pdd, energies):
@@ -86,17 +137,8 @@ def check_curve_list(pdd, energies):
         for i in range(0, len(pdd.data)-1):
             # Check for curves with similar energies
             if curve_list[i].E0_fit - curve_list[i+1].E0_fit < 2:
-                choice = eg.boolbox('The curve at position '
-                                    + str(i) + ' and ' + str(i+1)
-                                    + ' appear to the the same, with a fitted '
-                                      'energy of '
-                                    + str(round(curve_list[i].E0_fit, 2))
-                                    + ' and '
-                                    + str(round(curve_list[i+1].E0_fit, 2))
-                                    + ' respectively. Are these true '
-                                      'duplicates?',
-                                    choices=['No', 'Yes'])
-                if not choice:
+                choice = gg.same_curve(i, curve_list)
+                if choice is True:
                     # They are the same energy so add together etc.
                     data_join = pdd.data[i]
                     data_join[1] = np.add(pdd.data[i][1], pdd.data[i+1][1])/2
@@ -130,11 +172,13 @@ def create_curve_list(pdd, energies):
     return curve_list
 
 
-def plot_results(pdd, energies, curve_list):
+def plot_results(pdd, energies, curve_list, UserInput):
     # Pull out the results and also plot to make sure everything looks good.
+    max_e = max(energies)
+    min_e = min(energies)
     plt.figure(figsize=(12, 8))
     for i in range(0, len(pdd.data)):
-        if abs(curve_list[i].E0_fit - energies[i]) > 1:
+        if abs(curve_list[i].E0_fit - energies[i]) > 5:
             print('WARNING: Significant difference between expected and '
                   'fitted energies.')
         print('Energy = ' + str(energies[i]))
@@ -160,33 +204,61 @@ def plot_results(pdd, energies, curve_list):
                  label=str(round(curve_list[i].E0_fit, 2))+" MeV")
     # Format plot
     plt.legend(loc="upper right", fontsize=6)
+    plt.title("Energy = " + str(max_e)+'-'+str(min_e)+'MeV', fontsize=22)
     plt.xlabel("Depth (mm)", fontsize=18)
     plt.ylabel("Normalised dose", fontsize=18)
     plt.xticks(size=16)
     plt.yticks(size=16)
-    plt.show()
+    filename = os.path.join(UserInput.dirname,
+                            str(max_e)+'-'+str(min_e)+'MeV.png')
+    plt.savefig(filename, dpi=300, bbox_inches='tight', pad_inches=0)
+    # plt.show()
 
     return
 
 
-def compile_results(pdd, energies, curve_list):
-    dict = {'Energy': [],
+def compile_results(pdd, energies, UserInput, curve_list):
+
+    CURRENT_DATE = date.today()
+    dirpath = 'O:\\protons\\Work in Progress\\Christian\\Python\\GitHub\\pdd-analysis\\data'
+    RefData = ReferenceData(dirpath, UserInput.gantry)
+
+    dict = {'ADate': [],
+            'Record Date': [],
+            'Operator 1': [],
+            'Operator 2': [],
+            'Equipment': [],
+            'MachineName': [],
+            'GantryAngle': [],
+            'Energy': [],
             'E0': [],
-            'P80': [],
-            'P90': [],
-            'D90': [],
-            'D80': [],
-            'D20': [],
-            'D10': [],
-            'Fall Off': [],
-            'PTPR': [],
-            'Peak Width': [],
-            'Halo Ratio': []
+            'P80': [], 'P90': [], 'D90': [], 'D80': [], 'D20': [], 'D10': [],
+            'Fall Off': [], 'PTPR': [], 'Peak Width': [], 'Halo Ratio': [],
+            'P80 Gantry Diff': [], 'P90 Gantry Diff': [],
+            'D90 Gantry Diff': [], 'D80 Gantry Diff': [],
+            'D20 Gantry Diff': [], 'D10 Gantry Diff': [],
+            'Fall Off Gantry Diff': [], 'PTPR Gantry Diff': [],
+            'Peak Width Gantry Diff': [], 'Halo Ratio Gantry Diff': [],
+            'P80 Plan Diff': [], 'P90 Plan Diff': [],
+            'D90 Plan Diff': [], 'D80 Plan Diff': [],
+            'D20 Plan Diff': [], 'D10 Plan Diff': [],
+            'Fall Off Plan Diff': [], 'PTPR Plan Diff': [],
+            'Peak Width Plan Diff': [], 'Halo Ratio Plan Diff': [],
+            'Plot_X': [], 'Plot_Y': [], 'Comments': []
             }
+
     for i in range(0, len(pdd.data)):
-        if abs(curve_list[i].E0_fit - energies[i]) > 1:
+        if abs(curve_list[i].E0_fit - energies[i]) > 5:
             print('WARNING: Significant difference between expected and '
                   'fitted energies.')
+
+        dict['ADate'].append(pdd.date)
+        dict['Record Date'].append(CURRENT_DATE)
+        dict['Operator 1'].append(UserInput.operator_1)
+        dict['Operator 2'].append(UserInput.operator_2)
+        dict['Equipment'].append(UserInput.equipment)
+        dict['MachineName'].append(UserInput.gantry)
+        dict['GantryAngle'].append(UserInput.gantry_angle)
         dict['Energy'].append(energies[i])
         dict['E0'].append(curve_list[i].E0_fit)
         dict['P80'].append(curve_list[i].Prox80)
@@ -199,42 +271,195 @@ def compile_results(pdd, energies, curve_list):
         dict['PTPR'].append(curve_list[i].PTPR)
         dict['Peak Width'].append(curve_list[i].PeakWidth)
         dict['Halo Ratio'].append(curve_list[i].HaloRat)
+        dict['Plot_X'].append(pdd.data[i][0])
+        dict['Plot_Y'].append(pdd.data[i][1])
+        dict['Comments'].append(None)
+
+        # Doing it in a loop in case certain keys are missing from the
+        # reference data
+        keys = ['P80', 'P90', 'D90', 'D80', 'D20', 'D10', 'Fall Off', 'PTPR',
+                'Peak Width', 'Halo Ratio']
+        for key in keys:
+            try:
+                dict[key + ' Gantry Diff'].append(
+                    dict[key][-1] - RefData.df_gantry[key][energies[i]])
+            except KeyError:
+                dict[key + ' Gantry Diff'].append(None)
+            try:
+                dict[key + ' Plan Diff'].append(
+                    dict[key][-1] - RefData.df_tps[key][energies[i]])
+            except KeyError:
+                dict[key + ' Plan Diff'].append(None)
 
     return dict
 
 
+def write_to_db(dict, database_dir, pswrd=''):
+    '''
+    Write to the PDD Session and PDD Results Tables
+    '''
+
+    conn, cursor = di.db_connect(database_dir, pswrd=pswrd)
+
+    sql = ('INSERT INTO [PDD Session] ([ADate], [Record Date], '
+           '[Operator 1], [Operator 2], [Equipment], [MachineName], '
+           '[GantryAngle], [Comments]) \n'
+           'VALUES(?,?,?,?,?,?,?,?)')
+    keys = ['ADate', 'Record Date', 'Operator 1', 'Operator 2', 'Equipment',
+            'MachineName', 'GantryAngle', 'Comments']
+    record = []
+    for key in keys:
+        record.append(dict[key][0])
+
+    cursor.execute(sql, record)
+    conn.commit()
+
+    sql = ('INSERT INTO [PDD Results] ([ADate], [MachineName], [Energy], '
+           '[Prox 80], [Prox 90], [Dist 90], [Dist 80], '
+           '[Dist 20], [Dist 10], [Halo Ratio], [PTPR], '
+           '[Prox 80 Gantry Diff], [Prox 90 Gantry Diff], '
+           '[Dist 90 Gantry Diff], [Dist 80 Gantry Diff], '
+           '[Dist 20 Gantry Diff], [Dist 10 Gantry Diff], '
+           '[Halo Ratio Gantry Diff], [PTPR Gantry Diff], '
+           '[Prox 80 Plan Diff], [Prox 90 Plan Diff], '
+           '[Dist 90 Plan Diff], [Dist 80 Plan Diff], '
+           '[Dist 20 Plan Diff], [Dist 10 Plan Diff], '
+           '[Halo Ratio Plan Diff], [PTPR Plan Diff]) \n'
+           'VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+    keys = ['ADate', 'MachineName', 'Energy', 'P80', 'P90', 'D90', 'D80',
+            'D20', 'D10', 'Halo Ratio', 'PTPR', 'P80 Gantry Diff',
+            'P90 Gantry Diff', 'D90 Gantry Diff', 'D80 Gantry Diff',
+            'D20 Gantry Diff', 'D10 Gantry Diff', 'Halo Ratio Gantry Diff',
+            'PTPR Gantry Diff', 'P80 Plan Diff', 'P90 Plan Diff',
+            'D90 Plan Diff', 'D80 Plan Diff', 'D20 Plan Diff',
+            'D10 Plan Diff', 'Halo Ratio Plan Diff', 'PTPR Plan Diff']
+    for i in range(0, len(dict[keys[0]])):
+        record = []
+        for key in keys:
+            record.append(dict[key][i])
+        cursor.execute(sql, record)
+        conn.commit()
+
+    cursor.close()
+    conn.close()
+
+    return
+
+
+def check_dates(dummy_date, date):
+    if dummy_date == '':
+        dummy_date = date
+    else:
+        dummy_date = datetime.strptime(dummy_date, '%d/%m/%Y %H:%M:%S')
+        date = datetime.strptime(date, '%d/%m/%Y %H:%M:%S')
+        dates_sorted = sorted([dummy_date, date])
+        diff = dates_sorted[1] - dates_sorted[0]
+        if diff <= timedelta(hours=1):
+            print('Time difference between files <=1 hour. Therefore taking '
+                  'the ADate from the first file.')
+            date = dummy_date
+        else:
+            choice = gg.time_diff()
+            if choice:
+                print('Time difference between files >1 hour but still '
+                      'combining.')
+                date = dummy_date
+            else:
+                print('Time difference between files >1 hour. Starting again.')
+                os.system('pause')
+                raise SystemExit
+        dummy_date = dummy_date.strftime('%d/%m/%Y %H:%M:%S')
+        date = date.strftime('%d/%m/%Y %H:%M:%S')
+    return dummy_date, date
+
+
+def create_output_dir(count, date, UserInput):
+
+    date = datetime.strptime(date, '%d/%m/%Y %H:%M:%S')
+    UserInput.title = ('Giraffe - ' + str(UserInput.gantry) + ' - '
+                       + date.strftime('%Y-%m-%d %H\'%M\'%S'))
+    if UserInput.dirname is None:
+        UserInput.dirname = os.path.join(
+            UserInput.report_dirpath, UserInput.title)
+    if count == 0:
+        if os.path.exists(UserInput.dirname):
+            print('The directory ' + str(UserInput.dirname) + ' already exists'
+                  '\nCreating a new directory ' + UserInput.dirname + '-Copy')
+            UserInput.dirname = UserInput.dirname + '-Copy'
+            os.mkdir(UserInput.dirname)
+        else:
+            os.mkdir(UserInput.dirname)
+
+    return UserInput
+
+
+def add_comments(dict):
+
+    choice, comments = gg.comments()
+    if choice:
+        dict['Comments'] = [comments for x in dict['Comments']]
+
+    return choice, dict
+
+
 def main():
 
-    # Open file and create pdd object
-    filepath = eg.fileopenbox('Select the Giraffe csv file', filetypes='*.csv')
-    pdd = pm.DepthDoseFile(filepath)
+    database_dir = 'O:\\protons\\Work in Progress\\Christian\\Database\\Proton\\AssetsDatabase_be - CB.accdb'
 
-    # Determine what energies were measured
-    selection, energies = measured_energies()
+    UserInput = GUI(database_dir)
 
-    # Check the number of energies matches the number of curves and adjust for
-    # duplicates.
-    pdd = check_curve_list(pdd, energies)
+    results = [UserInput.f1, UserInput.f2,
+               UserInput.f3, UserInput.f4, UserInput.f5]
 
-    # Create a list of the properties of the measured curves
-    curve_list = create_curve_list(pdd, energies)
+    dict = {}
+    dummy_date = ''
+    for count, elem in enumerate(results):
+        file = elem[0]
+        energies = elem[1]
 
-    # Plot the measured and fitted curves.
-    plot_results(pdd, energies, curve_list)
+        if file == '':
+            pass
+        else:
+            print('\nAnalysing data in file - ' + str(file))
+            pdd = pm.DepthDoseFile(file)
 
-    # Compile the results into a dictionary
-    dict = compile_results(pdd, energies, curve_list)
-    print(dict)
+            # Check the number of energies matches the number of curves and
+            # adjust for duplicates.
+            pdd = check_curve_list(pdd, energies)
 
-    # # Save the results to QA record
-    # path = eg.filesavebox(msg='Create output file', title='Save Output',
-    #                       default="output.csv", filetypes=['*.csv'])
-    # df = pd.DataFrame.from_dict(dict)
-    # df.to_csv(path)
+            dummy_date, pdd.date = check_dates(dummy_date, pdd.date)
+            UserInput.adate = pdd.date
+            create_output_dir(count, pdd.date, UserInput)
 
-    path = eg.fileopenbox(msg='Locate the results file', title='Results File')
+            # Create a list of the properties of the measured curves
+            curve_list = create_curve_list(pdd, energies)
 
+            # Plot the measured and fitted curves.
+            plot_results(pdd, energies, curve_list, UserInput)
 
+            if dict == {}:
+                # Compile the results into a dictionary
+                dict = compile_results(pdd, energies, UserInput, curve_list)
+            else:
+                dict_dummy = compile_results(
+                    pdd, energies, UserInput, curve_list)
+                for key in dict.keys():
+                    dict[key].extend(dict_dummy[key])
+
+    print('\nCreating PDF Report. This may take a few minutes')
+    pdf.write_summary_report(dict, UserInput)
+    print('Completed')
+
+    # Add comments
+    choice, dict = add_comments(dict)
+
+    if choice:
+        # Write the results to the database
+        print('\nWriting to database')
+        write_to_db(dict, database_dir, pswrd='')
+        print('Completed')
+    else:
+        print('\nExiting without writing to database')
 
     # Pause before finishing (needed for when run as an executable)
     os.system('pause')

@@ -69,9 +69,12 @@ def normalised_dose(x, Phi0, R0, sigma, epsilon):
     y = []
     for x_value in x:
         psi = 1.0*(R0-x_value)/sigma
-        num1 = math.exp(-psi*psi/4) * math.pow(sigma, 1.0/p) * spec.gamma(1.0/p)
-        denom = math.sqrt(2*math.pi) * rho * p * math.pow(alpha, 1.0/p) *(1 + beta*R0)
-        num2 = 1.0/sigma * spec.pbdv(-1.0/p,-psi)[0] + (beta/p + gamma*beta + epsilon/R0)*spec.pbdv((-1.0/p -1),-psi)[0]
+        num1 = math.exp(-psi*psi/4) * math.pow(sigma,
+                                               1.0/p) * spec.gamma(1.0/p)
+        denom = math.sqrt(2*math.pi) * rho * p * \
+            math.pow(alpha, 1.0/p) * (1 + beta*R0)
+        num2 = 1.0/sigma * spec.pbdv(-1.0/p, -psi)[0] + (
+            beta/p + gamma*beta + epsilon/R0)*spec.pbdv((-1.0/p - 1), -psi)[0]
         # For points significantly beyond the peak num1*num2 becomes 0.0*inf
         # and so triggers a RuntimeWarning. This returns NaN which can then be
         # turned to zero with no significant loss of accuracy.
@@ -115,7 +118,8 @@ def make_plot(model, x, y, E0_data, params, x_bortfeld_best, y_bortfeld_best, E0
     lbl = lbl + " E0=" + str(round(E0_best, 2))
     x_bortfeld_best = np.arange(0, int(max(x)+1), 0.001).tolist()
     y_bortfeld_best = model.eval(params_best, x=x_bortfeld_best)
-    x_bortfeld_best, y_bortfeld_best = only_fit_peak(x_bortfeld_best, y_bortfeld_best, params['R0'].value, params['sigma'].value)
+    x_bortfeld_best, y_bortfeld_best = only_fit_peak(
+        x_bortfeld_best, y_bortfeld_best, params['R0'].value, params['sigma'].value)
     plt.plot(x_bortfeld_best, y_bortfeld_best, label=lbl)
     # Format plot
     plt.legend(loc="upper left", fontsize=16)
@@ -148,7 +152,8 @@ def bortfeld_fit(data, plotting=False):
     # PARAMETERS
     p = 1.77
     alpha = 2.2E-3   # Power law: R0=alpha*E0^p, with [E0]=MeV
-    beta = 0.012     # Gradient of linear fit for fluence reduction with residual range (cm^-1)
+    # Gradient of linear fit for fluence reduction with residual range (cm^-1)
+    beta = 0.012
     gamma = 0.6      # Fraction of dose from inelastic nuclear interactions absorbed locally
     rho = 1.0        # Density of material [g/cm^3]
 
@@ -159,7 +164,8 @@ def bortfeld_fit(data, plotting=False):
     # Form initial guess for optimizer.
     R0_init = x[np.argmax(y)]
     E0_data = math.pow(R0_init/alpha, 1.0/p)
-    sigma_init = math.sqrt(((0.012*math.pow(R0_init,0.935))**2) + ((0.01*E0_data*alpha*p*math.pow(E0_data,p-1))**2))
+    sigma_init = math.sqrt(((0.012*math.pow(R0_init, 0.935))**2)
+                           + ((0.01*E0_data*alpha*p*math.pow(E0_data, p-1))**2))
     epsilon_init = 0.1
     Phi0_init = 0.0192*E0_data + 1.2152  # Derived emperically from trial fits
 
@@ -189,17 +195,19 @@ def bortfeld_fit(data, plotting=False):
 
     x_bortfeld_best = np.arange(0, int(max(x)+1), 0.001).tolist()
     y_bortfeld_best = model.eval(params_best, x=x_bortfeld_best)
-    x_bortfeld_best, y_bortfeld_best = only_fit_peak(x_bortfeld_best, y_bortfeld_best, params['R0'].value, params['sigma'].value)
+    x_bortfeld_best, y_bortfeld_best = only_fit_peak(
+        x_bortfeld_best, y_bortfeld_best, params['R0'].value, params['sigma'].value)
     scaler = 100/np.amax(y_bortfeld_best)
     y_bortfeld_best = [scaler*value for value in y_bortfeld_best]
 
     if plotting:
-        make_plot(model, x, y, E0_data, params, x_bortfeld_best, y_bortfeld_best, E0_best, params_best)
+        make_plot(model, x, y, E0_data, params, x_bortfeld_best,
+                  y_bortfeld_best, E0_best, params_best)
 
     data = [x_bortfeld_best, y_bortfeld_best]
     data = np.array(data, copy=True)
-    print(E0_best)
-    print(fit_report)
+    # print(E0_best)
+    # print(fit_report)
 
     return data, scaler, fit_report, E0_best
 
@@ -222,19 +230,17 @@ if __name__ == "__main__":
         print('D20 = '+str(pm.dist_depth_seeker(20, data)))
         print('D10 = '+str(pm.dist_depth_seeker(10, data)))
         print()
-        dict[str(round(E0_best,2))] = [pm.dist_depth_seeker(20, data), pm.dist_depth_seeker(80, data), pm.dist_depth_seeker(90, data)]
+        dict[str(round(E0_best, 2))] = [pm.prox_depth_seeker(80, data),
+                                        pm.prox_depth_seeker(90, data),
+                                        pm.dist_depth_seeker(90, data),
+                                        pm.dist_depth_seeker(80, data),
+                                        pm.dist_depth_seeker(20, data),
+                                        pm.dist_depth_seeker(10, data)]
     import pandas as pd
 
-    df = pd.DataFrame.from_dict(dict)
+    columns = ['P80', 'P90', 'D90', 'D80', 'D20', 'D10']
+    df = pd.DataFrame.from_dict(dict, orient='index', columns=columns)
     pd.DataFrame.to_csv(df, 'output.csv')
-
-
-
-
-
-
-
-
 
 
 #

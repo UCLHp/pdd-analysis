@@ -1,4 +1,6 @@
 __pycache__/
+data/
+plots/
 env*/
 *.py[cod]
 *$py.class
