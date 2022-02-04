@@ -143,16 +143,16 @@ def plot(dict, key_y, key_x='Energy', filename='output.png'):
     plt.grid(color='#F2F2F2', alpha=1, zorder=0)
     plt.scatter(dict[key_x], dict[key_y], color='teal', zorder=2)
     if (key_y[-11:] == 'Gantry Diff') and (key_x == 'Energy'):
-        plt.plot([70, 245], [0.3, 0.3],
+        plt.plot([65, 250], [0.3, 0.3],
                  color='orange', lw=3, zorder=1)
-        plt.plot([70, 245], [-0.3, -0.3],
+        plt.plot([65, 250], [-0.3, -0.3],
                  color='orange', lw=3, zorder=1)
         plt.plot([215, 215], [-0.3, 0.3],
                  linestyle='dashed', color='plum', zorder=1)
     elif (key_y[-9:] == 'Plan Diff') and (key_x == 'Energy'):
-        plt.plot([70, 245], [1, 1],
+        plt.plot([65, 250], [1, 1],
                  color='firebrick', lw=3, zorder=2)
-        plt.plot([70, 245], [-1, -1],
+        plt.plot([65, 250], [-1, -1],
                  color='firebrick', lw=3, zorder=2)
         plt.plot([215, 215], [-1, 1],
                  linestyle='dashed', color='plum', zorder=1)
@@ -210,7 +210,4 @@ def write_summary_report(dict, UserInput):
         pdf.print_3images(page)
     pdf.output(report_filepath)
 
-    return
-
-    return
     return

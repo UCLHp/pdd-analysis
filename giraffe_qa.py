@@ -12,7 +12,7 @@ This programme uses Bortfeld fitting to determine the curve parameters.
 
 
 import os
-from datetime import date
+from datetime import date, datetime, timedelta
 
 import easygui as eg
 import numpy as np
@@ -20,7 +20,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import PySimpleGUI as sg
-from datetime import datetime, timedelta
 
 import pdd_module as pm
 import database_interaction as di
