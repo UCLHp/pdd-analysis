@@ -26,6 +26,7 @@ import pdd_module as pm
 import database_interaction as di
 import pdf_report as pdf
 import giraffe_gui as gg
+import giraffe_config as gc
 
 
 class ReferenceData:
@@ -47,18 +48,18 @@ class GUI:
     Acquire user inputs.
     '''
 
-    def __init__(self, database_dir):
+    def __init__(self, database_dir, pswrd):
         # Select Operator
-        operators = di.db_fetch(database_dir, 'Operators', pswrd='')
+        operators = di.db_fetch(database_dir, 'Operators', pswrd=pswrd)
         operators = sorted([row[2] for row in operators])
         operators.append('')
         # Select Gantry
-        machines = di.db_fetch(database_dir, 'Machines', pswrd='')
+        machines = di.db_fetch(database_dir, 'Machines', pswrd=pswrd)
         machines = sorted([row[0] for row in machines if 'Gantry' in row[0]])
         # Select Gantry
         gantry_angles = ['270', '0', '90', '180']
         # Select Equipment
-        equipment_list = di.db_fetch(database_dir, 'Assets', pswrd='')
+        equipment_list = di.db_fetch(database_dir, 'Assets', pswrd=pswrd)
         equipment_list = [row[1]
                           for row in equipment_list if 'Giraffe MLIC' in row[1]]
 
@@ -404,9 +405,11 @@ def add_comments(dict):
 
 def main():
 
-    database_dir = 'O:\\protons\\Work in Progress\\Christian\\Database\\Proton\\AssetsDatabase_be - CB.accdb'
+    GiraffeConfig = gc.GiraffeConfig()
+    database_dir = GiraffeConfig.db_dirpath_fe
+    database_password = GiraffeConfig.db_password_fe
 
-    UserInput = GUI(database_dir)
+    UserInput = GUI(database_dir, database_password)
 
     results = [UserInput.f1, UserInput.f2,
                UserInput.f3, UserInput.f4, UserInput.f5]
@@ -456,7 +459,7 @@ def main():
     if choice:
         # Write the results to the database
         print('\nWriting to database')
-        write_to_db(dict, database_dir, pswrd='')
+        write_to_db(dict, database_dir, pswrd=database_password)
         print('Completed')
     else:
         print('\nExiting without writing to database')
