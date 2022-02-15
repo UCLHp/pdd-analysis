@@ -33,8 +33,8 @@ def giraffe_gui(operators=[], machines=[], gantry_angles=[], equipment_list=[]):
     sg.theme('Topanga')
 
     img = 'data\\logo\\giraffe_small.png'
-    energies = ['210-70MeV (every 10MeV)',
-                '245-220MeV (every 10MeV + 245MeV)',
+    energies = ['70-210MeV (every 10MeV)',
+                '220-245MeV (every 10MeV + 245MeV)',
                 'Custom']
 
     frame = sg.Frame('User Input',
@@ -230,13 +230,15 @@ def time_diff():
     return choice
 
 
-def comments():
+def comments(UserInput):
 
     sg.theme('Topanga')
 
     msg1 = 'PLEASE REVIEW SUMMARY REPORT BEFORE ENTERING DATA INTO DATABASE!'
+    msg2 = 'Report saved here: ' + str(UserInput.dirname)
 
     layout = [[sg.Text(msg1)],
+              [sg.Text(msg2)],
               [sg.Text('_'*100)],
               [sg.Text('')],
               [sg.Text('Comments'), sg.Input(

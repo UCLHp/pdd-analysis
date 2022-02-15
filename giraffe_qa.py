@@ -58,9 +58,12 @@ class GUI:
         # Select Gantry
         gantry_angles = ['270', '0', '90', '180']
         # Select Equipment
-        equipment_list = di.db_fetch(database_dir, 'Assets', pswrd=pswrd)
-        equipment_list = [row[1]
-                          for row in equipment_list if 'Giraffe MLIC' in row[1]]
+        # equipment_list = di.db_fetch(database_dir, 'Assets', pswrd=pswrd)
+        # equipment_list = [row[1]
+        #                   for row in equipment_list if 'Giraffe MLIC' in row[1]]
+        equipment_list = di.db_fetch(
+            database_dir, 'PDD Equipment Query', pswrd=pswrd)
+        equipment_list = [row[0] for row in equipment_list]
 
         values = gg.giraffe_gui(operators=operators,
                                 machines=machines,
@@ -93,11 +96,11 @@ def measured_energies(selection):
     if selection == '':
         energies = None
 
-    elif selection == '210-70MeV (every 10MeV)':
+    elif selection == '70-210MeV (every 10MeV)':
         energies = [210, 200, 190, 180, 170, 160,
                     150, 140, 130, 120, 110, 100, 90, 80, 70]
 
-    elif selection == '245-220MeV (every 10MeV + 245MeV)':
+    elif selection == '220-245MeV (every 10MeV + 245MeV)':
         energies = [245, 240, 230, 220]
 
     elif selection == 'Custom':
@@ -393,9 +396,9 @@ def create_output_dir(count, date, UserInput):
     return UserInput
 
 
-def add_comments(dict):
+def add_comments(dict, UserInput):
 
-    choice, comments = gg.comments()
+    choice, comments = gg.comments(UserInput)
     if choice:
         dict['Comments'] = [comments for x in dict['Comments']]
 
@@ -453,7 +456,7 @@ def main():
     print('Completed')
 
     # Add comments
-    choice, dict = add_comments(dict)
+    choice, dict = add_comments(dict, UserInput)
 
     if choice:
         # Write the results to the database
@@ -468,4 +471,6 @@ def main():
 
 
 if __name__ == "__main__":
+    main()
+    main()
     main()
