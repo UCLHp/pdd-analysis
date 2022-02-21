@@ -272,4 +272,39 @@ def comments(UserInput):
 
     return choice, comments
 
-    #
+
+def map_drive_credentials():
+
+    sg.theme('Topanga')
+
+    msg1 = 'You\'re not logged in on a UCLH account. Please provide UCLH account details here.'
+    msg2 = '(Note this will disconnect any drive mapped to A: and replace with the assets database location)'
+
+    layout = [[sg.Text(msg1)],
+              [sg.Text(msg2)],
+              [sg.Text('UserName: \tUCLH\\', size=(19, 1)),
+               sg.InputText('', key='USER_NAME')],
+              [sg.Text('Password', size=(19, 1)),
+               sg.InputText('', key='PASSWORD', password_char='*')],
+              [sg.Button('Continue'), sg.Button('Exit')]]
+    window = sg.Window('Map Network Drive', layout)
+
+    event, values = window.read()
+
+    closed = True
+    while True:  # Event Loop
+        if event == sg.WIN_CLOSED or event == 'Exit':
+            event, values = window.read()
+            closed = False
+            break
+        if event == 'Continue':
+            event, values = window.read()
+            break
+
+    window.close()
+
+    return values, closed
+
+
+if __name__ == '__main__':
+    map_drive_credentials()

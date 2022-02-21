@@ -405,7 +405,31 @@ def add_comments(dict, UserInput):
     return choice, dict
 
 
+def map_drive():
+
+    if (os.getlogin() == 'rtadmin') or (os.getlogin() == 'rtpadmin'):
+        print('User ' + os.getlogin()
+              + ' detected. Opening GUI to request UCLH credentials')
+        values, closed = gg.map_drive_credentials()
+        user = values['USER_NAME']
+        password = values['PASSWORD']
+
+        cmd1 = 'net use a: /del'
+        cmd2 = 'net use a: \\\\9.140.36.84\\RTPAssetDatabase /user:UCLH\\' + user + ' ' + password
+
+        # Disconnect anything on A
+        os.system(cmd1)
+        # Connect to shared drive, use drive letter A
+        os.system(cmd2)
+    else:
+        print('User ' + os.getlogin()
+              + ' detected. Not rtadmin or rtpadmin so assuming has UCLH access rights')
+        pass
+
+
 def main():
+
+    map_drive()
 
     GiraffeConfig = gc.GiraffeConfig()
     database_dir = GiraffeConfig.db_dirpath_fe
