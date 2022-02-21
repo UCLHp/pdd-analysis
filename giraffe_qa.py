@@ -144,7 +144,7 @@ def check_curve_list(pdd, energies):
                 if choice is True:
                     # They are the same energy so add together etc.
                     data_join = pdd.data[i]
-                    data_join[1] = np.add(pdd.data[i][1], pdd.data[i+1][1])/2
+                    data_join[1] = np.add(pdd.data[i][1], pdd.data[i+1][1])
                     pdd.data[i] = data_join
                     pop_list.append(i+1)
         count = 0
