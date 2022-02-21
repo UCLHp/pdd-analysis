@@ -427,6 +427,19 @@ def map_drive():
         pass
 
 
+def disconnect_drive():
+
+    if (os.getlogin() == 'rtadmin') or (os.getlogin() == 'rtpadmin'):
+        print('User ' + os.getlogin()
+              + ' detected. Disconnecting previously mapped A:// Drive')
+        cmd1 = 'net use a: /del'
+        os.system(cmd1)
+    else:
+        print('User ' + os.getlogin()
+              + ' detected. Not rtadmin or rtpadmin so no need to remove A:\\ Drive')
+        pass
+
+
 def main():
 
     map_drive()
@@ -489,6 +502,8 @@ def main():
         print('Completed')
     else:
         print('\nExiting without writing to database')
+
+    disconnect_drive()
 
     # Pause before finishing (needed for when run as an executable)
     os.system('pause')
