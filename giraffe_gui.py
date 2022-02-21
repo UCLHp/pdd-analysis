@@ -169,7 +169,7 @@ def same_curve(i, curve_list):
 
     sg.theme('Topanga')
 
-    msg = ('The curve at position ' + str(i) + ' and ' + str(i+1)
+    msg = ('The curve at position ' + str(i+1) + ' and ' + str(i+2)
            + ' appear to the the same, \nwith a fitted energy of '
            + str(round(curve_list[i].E0_fit, 2))
            + ' and ' + str(round(curve_list[i+1].E0_fit, 2))
