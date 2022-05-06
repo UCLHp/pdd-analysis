@@ -223,7 +223,8 @@ def plot_results(pdd, energies, curve_list, UserInput):
 def compile_results(pdd, energies, UserInput, curve_list):
 
     CURRENT_DATE = date.today()
-    dirpath = 'O:\\protons\\Work in Progress\\Christian\\Python\\GitHub\\pdd-analysis\\data'
+    dirpath = os.path.join(os.getcwd(), 'data')
+    # dirpath = 'O:\\protons\\Work in Progress\\Christian\\Python\\GitHub\\pdd-analysis\\data'
     RefData = ReferenceData(dirpath, UserInput.gantry)
 
     dict = {'ADate': [],
