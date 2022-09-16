@@ -1,0 +1,12 @@
+__pycache__/
+test/
+data/
+plots/
+env*/
+*.py[cod]
+*$py.class
+# C extensions
+*.so
+*.pyc
+test/__pycache__
+\test.py
