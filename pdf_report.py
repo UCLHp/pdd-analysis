@@ -157,10 +157,10 @@ def plot(dict, key_y, key_x='Energy', filename='output.png'):
         plt.plot([215, 215], [-1, 1],
                  linestyle='dashed', color='plum', zorder=1)
 
-    plt.title(key_y, fontsize=17)
-    plt.xlabel(key_x, fontsize=13)
+    plt.title(key_y, fontsize=18)
+    plt.xlabel(key_x + '(MeV)', fontsize=12)
     plt.xticks(fontsize=9)
-    plt.ylabel('Difference', fontsize=13)
+    plt.ylabel('Difference (mm)\n(Reference - Measured)', fontsize=12)
     plt.yticks(fontsize=9)
     plt.savefig(filename, dpi=300, bbox_inches='tight', pad_inches=0)
     plt.close()
