@@ -443,7 +443,7 @@ def disconnect_drive():
 
 def main():
 
-    map_drive()
+    # map_drive()
 
     GiraffeConfig = gc.GiraffeConfig()
     database_dir = GiraffeConfig.db_dirpath_fe
@@ -504,7 +504,7 @@ def main():
     else:
         print('\nExiting without writing to database')
 
-    disconnect_drive()
+    # disconnect_drive()
 
     # Pause before finishing (needed for when run as an executable)
     os.system('pause')
