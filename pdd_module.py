@@ -114,7 +114,8 @@ def directory_to_dictionary(dir):
     for file in [_ for _ in os.listdir(dir) if _.endswith('.mcc')]:
         path = os.path.join(dir, file)
         try:
-            name = float(os.path.splitext(file)[0])
+            # name = float(os.path.splitext(file)[0])
+            name = float(file[1:4])
         except ValueError:
             eg.msgbox(f"File {os.path.splitext(file)[0]} incorrectly named\n"
                       + "Please rename with the relevant energy used\n"
