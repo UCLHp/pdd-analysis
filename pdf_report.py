@@ -143,11 +143,11 @@ def plot(dict, key_y, key_x='Energy', filename='output.png'):
     plt.grid(color='#F2F2F2', alpha=1, zorder=0)
     plt.scatter(dict[key_x], dict[key_y], color='teal', zorder=2)
     if (key_y[-11:] == 'Gantry Diff') and (key_x == 'Energy'):
-        plt.plot([65, 250], [0.3, 0.3],
+        plt.plot([65, 250], [0.5, 0.5],
                  color='orange', lw=3, zorder=1)
-        plt.plot([65, 250], [-0.3, -0.3],
+        plt.plot([65, 250], [-0.5, -0.5],
                  color='orange', lw=3, zorder=1)
-        plt.plot([215, 215], [-0.3, 0.3],
+        plt.plot([215, 215], [-0.5, 0.5],
                  linestyle='dashed', color='plum', zorder=1)
     elif (key_y[-9:] == 'Plan Diff') and (key_x == 'Energy'):
         plt.plot([65, 250], [1, 1],
