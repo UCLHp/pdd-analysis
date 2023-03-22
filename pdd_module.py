@@ -75,10 +75,13 @@ class DepthDoseFile:
             dose_index = self.full_file.index('Curve gains: [counts]')
             data_full = []
             for curve_index in range(0, no_of_curves):
-                dose_one_curve = self.full_file[1
-                                                + dose_index+curve_index].split(';')
-                data_full.append(np.asarray(
-                    [depth, dose_one_curve]).astype(float))
+                dose_one_curve = self.full_file[1 + dose_index+curve_index].split(';')
+                # If the counts are less than 1000 then dicard the curve as
+                # probably noise or a low measured duplicate
+                if float(dose_one_curve[0]) < 1000:
+                    no_of_curves = no_of_curves - 1
+                else:
+                    data_full.append(np.asarray([depth, dose_one_curve]).astype(float))
             # Find the date and Convert to datetime object based on format used in file
             date = [x for x in self.full_file if x.startswith('Date:')][0]
             date = date[6:25]
