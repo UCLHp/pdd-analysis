@@ -200,7 +200,11 @@ def compile_graphs(dict, dirname):
 
 def write_summary_report(dict, UserInput):
 
-    filename = 'Giraffe Summary Report.pdf'
+
+    date = datetime.strptime(UserInput.adate, '%d/%m/%Y %H:%M:%S')
+    date = date.strftime('%d-%m-%Y_%H-%M-%S')
+
+    filename = 'Giraffe Summary Report - ' + UserInput.gantry + ' - ' + date +'.pdf'
     report_filepath = os.path.join(UserInput.dirname, filename)
 
     pages_data = compile_graphs(dict, UserInput.dirname)
