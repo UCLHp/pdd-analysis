@@ -86,7 +86,7 @@ class PDF(FPDF):
             for key in gantry_diff_keys:
                 if dict[key][i] is None:
                     pass
-                elif abs(dict[key][i]) > 0.3:
+                elif abs(dict[key][i]) > 0.5:
                     msg = '['+str(dict['Energy'][i])+'MeV] ' + \
                                   key+' - Fail (Warning)'
                     gantry_diff_failed.append(msg)
