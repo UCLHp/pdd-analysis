@@ -3,6 +3,9 @@ import datetime
 import os
 import easygui as eg
 import pandas as pd
+import copy
+
+import bortfeld_fit as bf
 
 # NIST reference data for the Distal 80% for energies between 70MeV and 250MeV
 # https://physics.nist.gov/cgi-bin/Star/ap_table.pl
@@ -35,36 +38,58 @@ class DepthDoseFile:
     '''
     Class to create a depth dose object that contains the full depth dose data
     as well as the properties provided in files.
-    File must be either csv or mcc relating to MLIC or tank data respectively
+
+    File must be either csv or mcc relating to MLIC or tank data respectively.
+
+    If MLIC csv will output in format
+        self.data = [[depth, dose1], [depth, dose2]] (where [depth, dose] is a numpy array)
+    If tank mcc will output in format
+        self.data = [depth, dose] (where [depth, dose] is a numpy array)
     '''
+
     def __init__(self, filestring, norm=True):
         with open(filestring, 'r') as reader:
             self.full_file = [line.strip() for line in reader]
         # File type represented by the file extension
         self.file_type = os.path.splitext(filestring)[1]
         # All attributes listed here as None to be overwritten depending on the
-        # file type, csv filees don't have gantry angle or energy data
+        # file type, csv filees don't have gantry angle or energy data, mcc files
+        # don't have number of curves
         self.data = None
         self.date = None
         self.energy = None
         self.gantry_angle = None
+        self.no_of_curves = None
 
         # Giraffe MLIC produces csv files containing pdd data in a string
         # format seperated by ;
         if filestring.endswith('csv'):
-            # Find location of depth and dose data and seperate values by ;
+            # Find location of depth and seperate values by ; (Also convert to cm)
             depth_index = self.full_file.index('Curve depth: [mm]')
-            dose_index = self.full_file.index('Curve gains: [counts]')
             depth = self.full_file[1+depth_index].split(';')
-            dose = self.full_file[1+dose_index].split(';')
-
-            # Hopefully this numerical location is consistent
-            date = self.full_file[1][6:25]
-            # Convert to datetime object based on format used in file
+            # Find number of curves
+            no_of_curves = [
+                x for x in self.full_file if x.startswith('Curves:')][0]
+            no_of_curves = int(no_of_curves.split(': ')[1])
+            # Find location of dose and loop, seperating values by ;
+            dose_index = self.full_file.index('Curve gains: [counts]')
+            data_full = []
+            for curve_index in range(0, no_of_curves):
+                dose_one_curve = self.full_file[1 + dose_index+curve_index].split(';')
+                # If the counts are less than 1000 then dicard the curve as
+                # probably noise or a low measured duplicate
+                if float(dose_one_curve[0]) < 1000:
+                    no_of_curves = no_of_curves - 1
+                else:
+                    data_full.append(np.asarray([depth, dose_one_curve]).astype(float))
+            # Find the date and Convert to datetime object based on format used in file
+            date = [x for x in self.full_file if x.startswith('Date:')][0]
+            date = date[6:25]
             date = datetime.datetime.strptime(date, '%Y-%m-%dT%H:%M:%S')
-
-            self.data = np.asarray([depth, dose]).astype(float)
+            # Add to class
+            self.data = data_full
             self.date = date.strftime('%d/%m/%Y %H:%M:%S')
+            self.no_of_curves = no_of_curves
 
         # The PTW tank produces mcc files containing pdd data
         elif filestring.endswith('mcc'):
@@ -101,7 +126,11 @@ class DepthDoseFile:
                   'Depth dose data not written to object')
         # If norm=True data will be normalised to Dmax
         if norm:
-            normalise(self.data)
+            if filestring.endswith('csv'):
+                for data in self.data:
+                    normalise(data)
+            else:
+                normalise(self.data)
 
 
 def directory_to_dictionary(dir):
@@ -127,8 +156,8 @@ def directory_to_dictionary(dir):
         # For mcc files, check that the energy written to the file matches the
         # user defined filename
         if file[-3:] == 'mcc' and name != ref_data[name].energy:
-            eg.msgbox(f"File {file}: Energy doesn't match filename" +
-                      "Code will terminate",
+            eg.msgbox(f"File {file}: Energy doesn't match filename"
+                      + "Code will terminate",
                       title="Reference Data Error")
             raise SystemExit
 
@@ -173,7 +202,8 @@ class PeakProperties:
     Bragg Peak. It requires depth dose data, the energy (for the NIST reference
     data) and where the 'plateau' is defined for a peak to plateau ratio.
     '''
-    def __init__(self, data, energy, plateau_depth=25):
+
+    def __init__(self, data, energy, plateau_depth=25, bortfeld_fit_bool=False):
         # Only uses NIST values if within the hardcoded range
         if energy < 70:
             NISTRange = "Out Of Range"
@@ -187,6 +217,32 @@ class PeakProperties:
         data = np.array(data, copy=True)
         normalise(data)
 
+        if bortfeld_fit_bool is True:
+            raw_data = copy.deepcopy(data)
+            data[0] = data[0]/10  # Convert depths to cm
+            data, scaler, fit_report, E0_best = bf.bortfeld_fit(
+                data, plotting=False)
+            data[0] = 10*data[0]  # Convert depths back to mm
+            self.bortfeld_data = data
+            self.bortfeld_scaler = scaler
+            self.fit_report = fit_report
+            self.E0_fit = E0_best
+
+        # Peak to Plateau Ratio (PTPR) is calculated at a user defined depth
+        # The default value is set to 25mm deep
+        # For the bortfeld fit the raw data is neeeded as the fit doesn't
+        # extend far into the plateau region
+        if bortfeld_fit_bool is True:
+            peak_depth = data[0][np.argmax(data[1])]
+            plateau_depth = 0.3*peak_depth
+            peak = np.amax(data[1]/scaler)
+            plateau = np.interp(plateau_depth, raw_data[0], raw_data[1])
+            self.PTPR = peak/plateau
+        else:
+            peak = 100
+            plateau = np.interp(plateau_depth, data[0], data[1])
+            self.PTPR = peak/plateau
+
         self.NISTRange = NISTRange
         self.Prox80 = prox_depth_seeker(80, data)
         self.Prox90 = prox_depth_seeker(90, data)
@@ -198,9 +254,6 @@ class PeakProperties:
             self.NISTDiff = self.Dist80 - NISTRange
         self.Dist20 = dist_depth_seeker(20, data)
         self.Dist10 = dist_depth_seeker(10, data)
-        # Peak to Plateau Ratio (PTPR) is calculated at a user defined depth
-        # The default value is set to 25mm deep
-        self.PTPR = 100/np.interp(plateau_depth, data[0], data[1])
         self.FallOff = self.Dist20 - self.Dist80
         self.PeakWidth = self.Dist80 - self.Prox80
         # Halo ratio is the dose(%) at a depth one peakwidth shallower than

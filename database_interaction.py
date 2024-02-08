@@ -84,3 +84,5 @@ def props_table_from_db(DATABASE_DIR, ROUNDDATA, gantry=None, *, pswrd=False):
     # fields (e.g. fall off)
     ref_props = ref_props.round(ROUNDDATA)
     return ref_props
+
+    return
